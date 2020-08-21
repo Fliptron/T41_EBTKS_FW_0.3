@@ -25,7 +25,7 @@ bool loadRom(const char *fname, int slotNum, const char * description)
 
   if (slotNum > MAX_ROMS)
   {
-    Serial.printf("ROM slot number too large %d\n", slotNum);
+    LOGPRINTF("ROM slot number too large %d\n", slotNum);
     return false;
   }
 
@@ -33,14 +33,14 @@ bool loadRom(const char *fname, int slotNum, const char * description)
 
   if (!rfile)
   {
-    Serial.printf("ROM failed to read %s\n", fname);
+    LOGPRINTF("ROM failed to read %s\n", fname);
     rfile.close();
     return false;
   }
   // validate the rom image. The first two bytes are the id and the complement (except for secondary AUXROMs)
   if (rfile.read(header, 2) != 2)
   {
-    Serial.printf("ROM file read error %s\n", fname);
+    LOGPRINTF("ROM file read error %s\n", fname);
     rfile.close();
     return false;
   }
@@ -68,7 +68,7 @@ bool loadRom(const char *fname, int slotNum, const char * description)
 //          
 
   id = header[0];
-  Serial.printf("%03o %3d  %02X   %02X    %02X   ", id, id, id, header[1], (uint8_t)(id + header[1]));
+  LOGPRINTF("%03o %3d  %02X   %02X    %02X   ", id, id, id, header[1], (uint8_t)(id + header[1]));
   //
   //  No special ROM loading for Primary AUXROM at 0361.  This code handles the Secondaries from 0362 to 0375
   //
@@ -79,14 +79,14 @@ bool loadRom(const char *fname, int slotNum, const char * description)
     //
     if(header[1] != ((uint8_t)(~id) | (uint8_t)0360))   //  1's complement for 85 A/B.  No current support for 86/87
     {
-      Serial.printf("Secondary AUXROM file header error %02X %02X\n", id, (uint8_t)header[1]);
+      LOGPRINTF("Secondary AUXROM file header error %02X %02X\n", id, (uint8_t)header[1]);
       rfile.close();
       return false;
     }
   }
   else if (id != (uint8_t)(~header[1]))   //  now test normal ROM ID's , including the AUXROM Primary.
   {
-    Serial.printf("ROM file header error %02X %02X\n", id, (uint8_t)~header[1]);
+    LOGPRINTF("ROM file header error %02X %02X\n", id, (uint8_t)~header[1]);
     rfile.close();
     return false;
   }
@@ -96,7 +96,7 @@ bool loadRom(const char *fname, int slotNum, const char * description)
   int flen = rfile.read(&roms[slotNum][0], 8192);
   if (flen != 8192)
   {
-    Serial.printf("ROM file length error length: %d\n", flen);
+    LOGPRINTF("ROM file length error length: %d\n", flen);
     rfile.close();
     return false;
   }
@@ -105,7 +105,7 @@ bool loadRom(const char *fname, int slotNum, const char * description)
 
   romMap[id] = &roms[slotNum][0];
 
-  Serial.printf("%-1s\n", description);
+  LOGPRINTF("%-1s\n", description);
   rfile.close();
   return true;
 }
@@ -123,7 +123,7 @@ void saveConfiguration(const char *filename, const Config &config)
   File file = SD.open(filename, FILE_WRITE);
   if (!file)
   {
-    Serial.printf("Failed to create file\n");   //  This is probably pointless, since if we can't create a CONFIG.TXT file
+    LOGPRINTF("Failed to create file\n");   //  This is probably pointless, since if we can't create a CONFIG.TXT file
                                             //  what is the probability that Log File stuff is working?
     return;
   }
@@ -225,7 +225,7 @@ void saveConfiguration(const char *filename, const Config &config)
   // Serialize JSON to file
   if (serializeJsonPretty(doc, file) == 0)
   {
-    Serial.printf("Failed to write to file\n");   //  This is probably pointless, since if we can't write to CONFIG.TXT file
+    LOGPRINTF("Failed to write to file\n");   //  This is probably pointless, since if we can't write to CONFIG.TXT file
                                               //  what is the probability that Log File stuff is working?
   }
   // Close the file
@@ -245,12 +245,12 @@ void loadConfiguration(const char *filename, Config &config)
 
   char fname[256];
 
-  Serial.printf("Opening Config File [%s]\n", filename);
+  LOGPRINTF("Opening Config File [%s]\n", filename);
 
   // Open file for reading
   File file = SD.open(filename);
 
-   Serial.printf("File handle for config file %d\n", file);
+   LOGPRINTF("File handle for config file %d\n", (int)file);
 
   // Allocate a temporary JsonDocument
   // Don't forget to change the capacity to match your requirements.
@@ -262,24 +262,24 @@ void loadConfiguration(const char *filename, Config &config)
   if (error)
   {
     saveConfiguration(filename, config);
-    Serial.printf("Failed to read file, using default configuration\n");
-    Serial.printf("Failed to read file, using default configuration\n");
+    LOGPRINTF("Failed to read file, using default configuration\n");
+    LOGPRINTF("Failed to read file, using default configuration\n");
   }
-  Serial.printf("Didn't get deserializeJson error\n");
+  LOGPRINTF("Didn't get deserializeJson error\n");
 
   // Copy values from the JsonDocument to the Config
   config.ram16k = doc["ram16k"] | false;
-  Serial.printf("16K RAM for 85A:      %s\n", config.ram16k ? "Active" : "Inactive");
+  LOGPRINTF("16K RAM for 85A:      %s\n", config.ram16k ? "Active" : "Inactive");
   config.screenEmu = doc["screenEmu"] | false;
-  Serial.printf("Screen Emulation:     %s\n", config.screenEmu ? "Active" : "Inactive");
+  LOGPRINTF("Screen Emulation:     %s\n", config.screenEmu ? "Active" : "Inactive");
   config.tapeEmu = doc["tape"]["enable"] | false;
-  //Serial.printf("Tape Drive Emulation: %s\n", config.tapeEmu ? "Active" : "Inactive");
+  //LOGPRINTF("Tape Drive Emulation: %s\n", config.tapeEmu ? "Active" : "Inactive");
 
   const char *tapeFname=  doc["tape"]["filename"] | "tape1.tap";
   const char *path = doc["tape"]["directory"] | "/tapes/";
   strlcpy(config.tapeFile,path,sizeof(config.tapeFile));
   strlcat(config.tapeFile,tapeFname,sizeof(config.tapeFile));
-  Serial.printf("Tape file: %s enabled is: %s\n",config.tapeFile,config.tapeEmu ? "Active" : "Inactive");
+  LOGPRINTF("Tape file: %s enabled is: %s\n",config.tapeFile,config.tapeEmu ? "Active" : "Inactive");
   tape.setFile(config.tapeFile);
   tape.enable(config.tapeEmu);
   
@@ -296,8 +296,8 @@ void loadConfiguration(const char *filename, Config &config)
   const char* optionRoms_directory = doc["optionRoms"]["directory"] | "/roms/";
   int romIndex = 0;
 
-  Serial.printf("\nLoading ROMs from directory %s\n", optionRoms_directory);
-  Serial.printf("Name         ID: Oct Dec Hex  Compl  Sum  Description\n");
+  LOGPRINTF("\nLoading ROMs from directory %s\n", optionRoms_directory);
+  LOGPRINTF("Name         ID: Oct Dec Hex  Compl  Sum  Description\n");
 
   for (JsonVariant theRom : doc["optionRoms"]["roms"].as <JsonArray>())
   {
@@ -310,7 +310,7 @@ void loadConfiguration(const char *filename, Config &config)
 
     if (enable == true)
     {
-      Serial.printf("%-16s ", filename);
+      LOGPRINTF("%-16s ", filename);
       if (loadRom(fname, romIndex, description) == true)
       {
         romIndex++;
@@ -319,7 +319,7 @@ void loadConfiguration(const char *filename, Config &config)
       //  EBTKS_delay_ns(10000);    //  10 us
     }
   }
-  Serial.printf("\n");
+  LOGPRINTF("\n");
   //
   // configure the disk drives. currently we only handle one hpib interface at SC 7 (the default)
   //
@@ -349,7 +349,7 @@ void loadConfiguration(const char *filename, Config &config)
         {
           devices[device]->addDisk((DISK_TYPE)type);
           devices[device]->setFile(unitNum, fname, wprot);
-          Serial.printf("Add Drive type: %d to Device: %d as Unit: %d with image file: %s\r\n",type,device,unitNum,fname);
+          LOGPRINTF("Add Drive type: %d to Device: %d as Unit: %d with image file: %s\r\n",type,device,unitNum,fname);
         }
       }
     }

@@ -38,7 +38,7 @@
 //  Enables for code modules             THESE ARE IN USE                         <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 
 
-#define LOGLEVEL_1MB5               0     //  0 for no logging, 1 for Serial.printf, 2 for LOG File  .   This is used further down in this file
+#define LOGLEVEL_1MB5               1     //  0 for no logging, 1 for Serial.printf, 2 for LOG File  .   This is used further down in this file
 
 //
 //      Enable if we decide to use LISP as a scripting language
