@@ -262,7 +262,7 @@ void loadConfiguration(const char *filename, Config &config)
     LOGPRINTF("Failed to read file, using default configuration\n");
     LOGPRINTF("Failed to read file, using default configuration\n");
   }
-  LOGPRINTF("Didn't get deserializeJson error\n");
+  LOGPRINTF("deserializeJson Successful\n");
 
   // Copy values from the JsonDocument to the Config
   config.ram16k = doc["ram16k"] | false;

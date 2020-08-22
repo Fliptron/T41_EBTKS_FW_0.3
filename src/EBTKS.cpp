@@ -681,7 +681,7 @@ void setup()
                                             //  real PWO high is 187 ms later
   PHI_1_and_2_IMR = (BIT_MASK_PHASE1 | BIT_MASK_PHASE2);   //  Enable Phi 1 and Phi 2 interrupts
 
-  delay(1000);                              //  Wait 1000 ms before falling into loop()  This might be BAD. What if a device op occurs while we are waiting?
+  delay(10);                                //  Wait 10 ms before falling into loop()  This might be BAD. What if a device op occurs while we are waiting?
                                             //  Seems there are some issues of loop functions interfering with the Service ROM initial sanity check,
                                             //  Specifically the call to test_for_three_shift_clicks() which does DMA every 10 ms
 
