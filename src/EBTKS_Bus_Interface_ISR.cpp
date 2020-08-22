@@ -44,10 +44,8 @@
 
 #include <Arduino.h>
 #include <setjmp.h>
-#include "EBTKS.h"
-#include "EBTKS_Config.h"
-#include "EBTKS_Global_Data.h"
-#include "EBTKS_Function_Declarations.h"
+
+#include "Inc_Common_Headers.h"
 
 //
 //  EBTKS has only 2 interrupts, one for Phi 1 rising edge, and one for Phi 2 rising edge

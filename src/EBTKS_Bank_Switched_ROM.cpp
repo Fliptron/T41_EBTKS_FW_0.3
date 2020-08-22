@@ -5,11 +5,8 @@
 
 #include <Arduino.h>
 #include <setjmp.h>
-#include "EBTKS.h"
-#include "EBTKS_Config.h"
-#include "EBTKS_Global_Data.h"
-#include "EBTKS_Function_Declarations.h"
 
+#include "Inc_Common_Headers.h"
 
 void ioWriteRSELEC(uint8_t val)                  //  This function is running within an ISR, keep it short and fast.
 {

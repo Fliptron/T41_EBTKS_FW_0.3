@@ -46,11 +46,8 @@
 
 
 #include <Arduino.h>
-#include "EBTKS.h"
-#include "EBTKS_Config.h"
-#include "EBTKS_Global_Data.h"
-#include "EBTKS_Function_Declarations.h"
 
+#include "Inc_Common_Headers.h"
 
 static void DMA_Preamble(uint16_t DMA_Target_Address);
 static int32_t DMA_Read_Burst(uint8_t buffer[], uint32_t bytecount);           //  This function is only called by DMA_Read_Block()

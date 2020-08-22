@@ -4,6 +4,9 @@
 //
 //
 //
+#include <Arduino.h>
+
+#include "Inc_Common_Headers.h"
 
 #define SYSMON_STATUS (0xffdfU)
 #define SYSMON_DAT (0xffdeU)

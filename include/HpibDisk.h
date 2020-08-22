@@ -1,5 +1,5 @@
 #include <Arduino.h>
-#include "SD.h"
+
 #include "HPDisk.h"
 
 #define HPIB_UNT 0x5f

@@ -8,12 +8,8 @@
 #include <Arduino.h>
 #include <setjmp.h>
 #include <string.h>
-#include "EBTKS.h"
-#include "EBTKS_Config.h"
-#include "EBTKS_Global_Data.h"
-#include "EBTKS_Function_Declarations.h"
-// #include "SD.h"                                    included by EBTKS_Function_Declarations.h
 
+#include "Inc_Common_Headers.h"
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////     CRT Mirror Support
 

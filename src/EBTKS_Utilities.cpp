@@ -10,10 +10,9 @@
 //
 
 #include <Arduino.h>
-#include "EBTKS.h"
-#include "EBTKS_Config.h"
-#include "EBTKS_Global_Data.h"
-#include "EBTKS_Function_Declarations.h"
+
+#include "Inc_Common_Headers.h"
+
 //##DISABLED##//#include "cpm_emu.h"
 
 //##DISABLED##//extern void lisp_setup(void);

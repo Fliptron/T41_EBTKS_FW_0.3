@@ -4,6 +4,26 @@
 //  07/xx/2020  Continuous changes to support changes elsewhere
 //
 
+//
+//  Header file contents and dependencies
+//
+//  EBTKS.h                 Pin definitions, I/O port control, Macros for Bus buffers and DMA control,
+//                          Macros for diagnostic pins: RXD, TXD, T33, T39, LED, Macros for ISRs,
+//                          enums for bus cycles and the Logic Analyzer (simple code trace)
+//                          HP85 I/O registers, and reserved RAM locations
+//
+//  EBTKS_Config.h          Configuration for how all the code is compiled, and definition of various
+//                          regions of memory on the HP85
+//                          Depends on #defines in EBTKS.h
+//
+//  EBTKS_Global_Data.h
+//                          Depends on #defines in EBTKS_Config.h
+//
+//
+//
+//
+//
+
 #define CORE_PIN_BUFEN            ( 0)
 #define CORE_PIN_CTRL_DIR         ( 1)
 #define CORE_PIN_NEOPIX_TSY       ( 2)
@@ -462,6 +482,43 @@
 #define RELEASE_PWO_OUT         (GPIO_DR_CLEAR_PWO_O = BIT_MASK_PWO_O)
 
 //
+//    On EBTKS V2.0 , with Teensy 4.1, the 8 bit data bus is GPIO 6
+//    The bits are contiguous, with LSB being bit 16
+//
+//    All the register references in these macros should only appear in these macro definitions.
+//      Everywhere should use these macro definitions, for consistency, clarity, and reliability
+//        Validated 2020_07_19 by doing a global search of all project files
+
+#define DATA_BUS_MASK                      (0x00FF0000U)
+#define DATA_BUS_GDIR                      (GPIO_DIRECTION_DB0)
+#define SET_T4_BUS_TO_OUTPUT               (DATA_BUS_GDIR |= DATA_BUS_MASK)
+#define SET_T4_BUS_TO_INPUT                (DATA_BUS_GDIR &= (~DATA_BUS_MASK))
+
+//
+//    Pin Tests and Waits
+//
+//    All the register references in these macros should only appear in these macro definitions.
+//      Everywhere should use these macro definitions, for consistency, clarity, and reliability
+//        Validated 2020_07_19 by doing a global search of all project files
+
+#define IS_PWO_HIGH                  ((GPIO_PAD_STATUS_REG_PWO_L & BIT_MASK_PWO_L) != 0)
+#define IS_PWO_LOW                   ((GPIO_PAD_STATUS_REG_PWO_L & BIT_MASK_PWO_L) == 0)
+#define WAIT_WHILE_PWO_LOW           while(IS_PWO_LOW) {}
+
+#define IS_PHI_1_HIGH                ((GPIO_PAD_STATUS_REG_PHASE1 & BIT_MASK_PHASE1) != 0)
+#define IS_PHI_1_LOW                 ((GPIO_PAD_STATUS_REG_PHASE1 & BIT_MASK_PHASE1) == 0)
+#define WAIT_WHILE_PHI_1_HIGH        while(IS_PHI_1_HIGH) {}
+#define WAIT_WHILE_PHI_1_LOW         while(IS_PHI_1_LOW) {}
+
+#define IS_PHI_2_HIGH                ((GPIO_PAD_STATUS_REG_PHASE2 & BIT_MASK_PHASE2) != 0)
+#define IS_PHI_2_LOW                 ((GPIO_PAD_STATUS_REG_PHASE2 & BIT_MASK_PHASE2) == 0)
+#define WAIT_WHILE_PHI_2_HIGH        while(IS_PHI_2_HIGH) {}
+#define WAIT_WHILE_PHI_2_LOW         while(IS_PHI_2_LOW) {}
+
+#define PHI_1_and_2_IMR              (GPIO6_IMR)
+#define PHI_1_and_2_ISR              (GPIO6_ISR)
+
+//
 //  Use the TX5/RX5 on Teensy pins 20 1nd 21 as diag pins. Bit 26 is RXD on Pin 20
 //                                                         Bit 27 is TXD on Pin 21
 //
@@ -488,19 +545,28 @@
 #define CLEAR_LED                          (GPIO_DR_CLEAR_T13  = BIT_MASK_T13)
 #define TOGGLE_LED                         (GPIO_DR_TOGGLE_T13 = BIT_MASK_T13)
 
+//
+//  Log file support
+//
+
+#define  LOGPRINTF(...)  do {sprintf(logfile_temp_text, __VA_ARGS__); append_to_logfile(logfile_temp_text); } while(0)
+//  #define  LOGPRINTF(...)  Append_to_Logfile(__VA_ARGS__);  for future use
+
+#if LOGLEVEL_1MB5 == 0
+#define LOGPRINTF_1MB5(...) do {} while(0)
+#endif
+
+#if LOGLEVEL_1MB5 == 1
+#define LOGPRINTF_1MB5(...) do {Serial.printf(__VA_ARGS__); } while(0)
+#endif
+
+#if LOGLEVEL_1MB5 == 2
+#define  LOGPRINTF_1MB5(...) do {sprintf(logfile_temp_text, __VA_ARGS__); append_to_logfile(logfile_temp_text); } while(0)
+#endif
 
 //
-//    On EBTKS V2.0 , with Teensy 4.1, the 8 bit data bus is GPIO 6
-//    The bits are contiguous, with LSB being bit 16
+//  DMA Support. EBTKS gets to generate /LMA, /RD, /WR
 //
-//    All the register references in these macros should only appear in these macro definitions.
-//      Everywhere should use these macro definitions, for consistency, clarity, and reliability
-//        Validated 2020_07_19 by doing a global search of all project files
-
-#define DATA_BUS_MASK                      (0x00FF0000U)
-#define DATA_BUS_GDIR                      (GPIO_DIRECTION_DB0)
-#define SET_T4_BUS_TO_OUTPUT               (DATA_BUS_GDIR |= DATA_BUS_MASK)
-#define SET_T4_BUS_TO_INPUT                (DATA_BUS_GDIR &= (~DATA_BUS_MASK))
 
 //      Assert LMA means drive LOW
 #define ASSERT_LMA                         (GPIO_DR_CLEAR_LMA = BIT_MASK_LMA)
@@ -514,29 +580,7 @@
 #define ASSERT_WR                          (GPIO_DR_CLEAR_WR = BIT_MASK_WR)
 #define RELEASE_WR                         (GPIO_DR_SET_WR   = BIT_MASK_WR)
 
-//
-//    Pin Tests and Waits
-//
-//    All the register references in these macros should only appear in these macro definitions.
-//      Everywhere should use these macro definitions, for consistency, clarity, and reliability
-//        Validated 2020_07_19 by doing a global search of all project files
 
-#define IS_PWO_HIGH                  ((GPIO_PAD_STATUS_REG_PWO_L & BIT_MASK_PWO_L) != 0)
-#define IS_PWO_LOW                   ((GPIO_PAD_STATUS_REG_PWO_L & BIT_MASK_PWO_L) == 0)
-#define WAIT_WHILE_PWO_LOW           while(IS_PWO_LOW) {}
-
-#define IS_PHI_1_HIGH                ((GPIO_PAD_STATUS_REG_PHASE1 & BIT_MASK_PHASE1) != 0)
-#define IS_PHI_1_LOW                 ((GPIO_PAD_STATUS_REG_PHASE1 & BIT_MASK_PHASE1) == 0)
-#define WAIT_WHILE_PHI_1_HIGH        while(IS_PHI_1_HIGH) {}
-#define WAIT_WHILE_PHI_1_LOW         while(IS_PHI_1_LOW) {}
-
-#define IS_PHI_2_HIGH                ((GPIO_PAD_STATUS_REG_PHASE2 & BIT_MASK_PHASE2) != 0)
-#define IS_PHI_2_LOW                 ((GPIO_PAD_STATUS_REG_PHASE2 & BIT_MASK_PHASE2) == 0)
-#define WAIT_WHILE_PHI_2_HIGH        while(IS_PHI_2_HIGH) {}
-#define WAIT_WHILE_PHI_2_LOW         while(IS_PHI_2_LOW) {}
-
-#define PHI_1_and_2_IMR              (GPIO6_IMR)
-#define PHI_1_and_2_ISR              (GPIO6_ISR)
 
 //
 //  Bus Cycle Type from Patent US4424563 , Fig 13

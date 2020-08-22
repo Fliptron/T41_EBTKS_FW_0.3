@@ -5,11 +5,11 @@
 //
 
 //
-//  Enables for code modules             THESE ARE NOT YET IN USE                 <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+//  Enables for code modules             THESE ARE NOT YET IN USE                 <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 //
 //
 //      Enable if we are maintaining a copy of write to the CRT Character memory
-#define ENABLE_CRT_CHAR_COPY      (1)
+#define ENABLE_CRT_CHAR_COPY      (0)
 //
 //      Enable if we are maintaining a copy of write to the CRT Graphics memory
 #define ENABLE_CRT_GRAPH_COPY     (0)
@@ -35,10 +35,10 @@
 //
 //
 //
-//  Enables for code modules             THESE ARE IN USE                         <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+//  Enables for code modules             THESE ARE IN USE                         <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+//
 
-
-#define LOGLEVEL_1MB5               1     //  0 for no logging, 1 for Serial.printf, 2 for LOG File  .   This is used further down in this file
+#define LOGLEVEL_1MB5               0     //  0 for no logging, 1 for Serial.printf, 2 for LOG File  .   This is used further down in this file
 
 //
 //      Enable if we decide to use LISP as a scripting language
@@ -59,24 +59,24 @@
 #define AUXROM_PRIMARY_ID                 (0361)
 #define AUXROM_SECONDARY_ID_START         (0362)
 #define AUXROM_SECONDARY_ID_END           (0375)
-#define AUXROM_RAM_WINDOW_START           (010000)
-#define AUXROM_RAM_WINDOW_SIZE            (3072)
+#define AUXROM_RAM_WINDOW_START           (010000)      //  Relative to base address of bank switched ROMs. HP85 sees this as 070000
+#define AUXROM_RAM_WINDOW_SIZE            (006000)      //  3K bytes
 #define AUXROM_RAM_WINDOW_LAST            (AUXROM_RAM_WINDOW_START + AUXROM_RAM_WINDOW_SIZE - 1)
 
 //
 //    16K of extra RAM for HP85-A
 //
 
-#define HP85A_16K_RAM_module_base_addr    (0xC000U)
-#define IO_ADDR                           (0xFF00U)     //  Top 256 bytes of the address space
-#define EXP_RAM_SIZE                      (16384 - 256)
+#define HP85A_16K_RAM_module_base_addr    (0140000)
+#define IO_ADDR                           (0177400)       //  Top 256 bytes of the address space
+#define EXP_RAM_SIZE                      (16384 - 256)   //  16128 bytes of RAM
 
 //
 //    Tracking the CRT activity. Can be used to dump to a remote file or printer, and
 //    also needed if we want to scribble on the screen
 //
 
-#define CRT_ADDR 0xFF04 // or 177404 for our octal friends. crt controller occupies four bytes
+#define CRT_ADDR 0177404 //  CRTSAD crt controller occupies four bytes
 
 #define DUMP_HEIGHT (16)
 
@@ -101,25 +101,6 @@
 #define SERIAL_COMMAND_MAX_LENGTH         (81)
 
 //
-//  Log file support
-//
-
-#define  LOGPRINTF(...)  do {sprintf(logfile_temp_text, __VA_ARGS__); append_to_logfile(logfile_temp_text); } while(0)
-//  #define  LOGPRINTF(...)  Append_to_Logfile(__VA_ARGS__);  for future use
-
-#if LOGLEVEL_1MB5 == 0
-#define LOGPRINTF_1MB5(...) do {} while(0)
-#endif
-
-#if LOGLEVEL_1MB5 == 1
-#define LOGPRINTF_1MB5(...) do {Serial.printf(__VA_ARGS__); } while(0)
-#endif
-
-#if LOGLEVEL_1MB5 == 2
-#define  LOGPRINTF_1MB5(...) do {sprintf(logfile_temp_text, __VA_ARGS__); append_to_logfile(logfile_temp_text); } while(0)
-#endif
-
-//
 //  Logic Analyzer Support
 //
 //  LOGIC_ANALYZER_BUFFER_SIZE must be a power of two for modulo indexing
@@ -128,7 +109,4 @@
 
 #define LOGIC_ANALYZER_BUFFER_SIZE        (1024)
 #define LOGIC_ANALYZER_INDEX_MASK         (0x000003FFU)
-
-
-
 

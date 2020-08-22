@@ -12,11 +12,8 @@
 //
 
 #include <Arduino.h>
-#include "EBTKS.h"
-#include "EBTKS_Config.h"
-#include "EBTKS_Global_Data.h"
-#include "EBTKS_Function_Declarations.h"
-// #include "SD.h"            included by EBTKS_Function_Declarations.h
+
+#include "Inc_Common_Headers.h"
 
 //
 //    Tape Drive Emulation
@@ -276,16 +273,39 @@ Tape::Tape()
     _downCount = 0;
 }
 
-bool Tape::setFile(char *fname)
+bool Tape::setFile(const char *fname)
 {
-    _tapeFile = SD.open(fname, FILE_WRITE);
-    strlcpy(_filename, fname,sizeof(_filename));
-    if (!_tapeFile)
-        {
-        Serial.printf("Tape file did not open: %s\n", fname);
-        }
+  char temptext[270];
+  
+  strcpy(temptext,_pathname);
+  strcat(temptext, fname);
 
+  _tapeFile = SD.open(temptext, (O_READ | O_WRITE));
+  if (!_tapeFile)
+  {
+    Serial.printf("Tape file did not open: %s\n", temptext);
+  }
+  else
+  {
+    strlcpy(_filename, fname, sizeof(_filename));
+    Serial.printf("Tape file opened: %s\n", temptext);
+  }
     return !_tapeFile ? false : true;
+}
+
+char * Tape::getFile(void)
+{
+  return _filename;
+}
+
+void Tape::setPath(const char *pname)
+{
+  strlcpy(_pathname, pname, sizeof(_pathname));
+}
+
+char * Tape::getPath(void)
+{
+  return _pathname;
 }
 
 void Tape::close(void)
@@ -402,7 +422,7 @@ void Tape::poll(void)
     _prevCtrl = ioTapCtl;
 }
 
-Tape tape;
+
 
 void tape_handle_command_flush(void)
 {
@@ -411,15 +431,15 @@ void tape_handle_command_flush(void)
 
 void tape_handle_command_load(void)
 {
-    Serial.printf("\nLoad new tape file. Enter filename:");
-    while (!serial_string_available) //  Hang here till we get a file name (hopefully)
-    {
-        get_serial_string_poll();
-    }
-    Serial.printf("\nOpen tape: %s \n", serial_string);
-    tape.close();
-    blockDirty = false;
-    tapeInCount = 1; //flag the tape removal to the HP85
-    tape.setFile(serial_string);
-   serial_string_used();
+  Serial.printf("\nLoad new tape file. Enter filename: ");
+  while (!serial_string_available) //  Hang here till we get a file name (hopefully)
+  {
+    get_serial_string_poll();
+  }
+  Serial.printf("\nOpening tape: %s%s \n", tape.getPath() ,   serial_string);
+  tape.close();
+  blockDirty = false;
+  tapeInCount = 1; //flag the tape removal to the HP85
+  tape.setFile(serial_string);
+  serial_string_used();
 }

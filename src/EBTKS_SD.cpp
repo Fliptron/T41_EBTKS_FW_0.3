@@ -4,13 +4,10 @@
 
 #include <Arduino.h>
 #include <ArduinoJson.h>
-#include "EBTKS.h"
-#include "EBTKS_Config.h"
-#include "EBTKS_Global_Data.h"
-#include "EBTKS_Function_Declarations.h"
-#include "HpibDisk.h"
 
-//  #include "SD.h"       included by EBTKS_Function_Declarations.h
+#include "Inc_Common_Headers.h"
+
+#include "HpibDisk.h"
 
 extern HpibDisk *devices[];
 
@@ -272,17 +269,15 @@ void loadConfiguration(const char *filename, Config &config)
   LOGPRINTF("16K RAM for 85A:      %s\n", config.ram16k ? "Active" : "Inactive");
   config.screenEmu = doc["screenEmu"] | false;
   LOGPRINTF("Screen Emulation:     %s\n", config.screenEmu ? "Active" : "Inactive");
-  config.tapeEmu = doc["tape"]["enable"] | false;
+  bool tapeEmu = doc["tape"]["enable"] | false;
   //LOGPRINTF("Tape Drive Emulation: %s\n", config.tapeEmu ? "Active" : "Inactive");
 
   const char *tapeFname=  doc["tape"]["filename"] | "tape1.tap";
   const char *path = doc["tape"]["directory"] | "/tapes/";
-  strlcpy(config.tapeFile,path,sizeof(config.tapeFile));
-  strlcat(config.tapeFile,tapeFname,sizeof(config.tapeFile));
-  LOGPRINTF("Tape file: %s enabled is: %s\n",config.tapeFile,config.tapeEmu ? "Active" : "Inactive");
-  tape.setFile(config.tapeFile);
-  tape.enable(config.tapeEmu);
-  
+  tape.setPath(path);
+  tape.setFile(tapeFname);
+  tape.enable(tapeEmu);
+  LOGPRINTF("Tape file: %s%s enabled is: %s\n", path, tapeFname, tapeEmu ? "Active" : "Inactive");  
   
 
   TXD_Pulser(1);                                                                  //  From beginning of function to here is 1.28 ms

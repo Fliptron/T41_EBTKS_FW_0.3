@@ -171,7 +171,6 @@ EXTERN  ioWriteFuncPtr_t ioWriteFuncs[256];
 EXTERN  bool logfile_active;
 EXTERN  char logfile_temp_text[200];    //  That should be enough, bad news as no checking is done.
 
-
 //
 //  Logic Analyzer
 //
@@ -190,6 +189,8 @@ EXTERN  uint32_t  Logic_Analyzer_current_bus_cycle_state_LA;
 EXTERN  uint32_t  Logic_Analyzer_Valid_Samples;
 
 EXTERN  volatile uint32_t  Logic_Analyzer_sample;
+
+EXTERN  Tape tape;
 
 ///////////////////////////////////////////////////  Initialized Globals.  /////////////////////////////////////////////////////////////////
 

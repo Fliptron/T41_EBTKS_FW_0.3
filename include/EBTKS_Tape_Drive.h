@@ -1,10 +1,19 @@
+
+#ifndef TAPE_H
+
+#define TAPE_H
+
 #include "Arduino.h"
+#include "SD.h"
 
 class Tape
 {
     public:
     Tape();
-    bool setFile(char *fname);
+    bool setFile(const char *fname);
+    char * getFile(void);
+    void setPath(const char *pname);
+    char * getPath(void);
     void close(void);
    
     void flush(void);
@@ -14,7 +23,8 @@ class Tape
 
     private:
     File _tapeFile;
-    char _filename[30];
+    char _filename[15];
+    char _pathname[250];
     uint32_t _tick;
     uint8_t _prevCtrl;
     uint32_t _downCount;
@@ -23,11 +33,4 @@ class Tape
     void blockWrite(int blkNum);
 };
 
-extern Tape tape;
-//FASTRUN bool readTapeStatus(void);
-//FASTRUN bool readTapeData(void);
-//FASTRUN void writeTapeData(uint8_t val);
-//FASTRUN void writeTapeCtrl(uint8_t val);
-
-//void tapeInit(void);
-//void tapePoll(void);
+#endif

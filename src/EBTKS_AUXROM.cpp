@@ -4,11 +4,8 @@
 
 #include <Arduino.h>
 #include <string.h>
-#include "EBTKS.h"
-#include "EBTKS_Config.h"
-#include "EBTKS_Global_Data.h"
-#include "EBTKS_Function_Declarations.h"
 
+#include "Inc_Common_Headers.h"
 
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////// 

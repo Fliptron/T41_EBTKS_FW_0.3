@@ -1,13 +1,7 @@
 
 #include <Arduino.h>
-#include <SD.h>
 
-#ifndef LOGLEVEL_1MB5
-#include "EBTKS.h"
-#include "EBTKS_Config.h"
-#include "EBTKS_Global_Data.h"
-#include "EBTKS_Function_Declarations.h"
-#endif
+//#include "Inc_Common_Headers.h"
 
 enum DISK_TYPE
     {

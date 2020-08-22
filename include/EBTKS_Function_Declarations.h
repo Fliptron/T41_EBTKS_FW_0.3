@@ -2,9 +2,6 @@
 //	06/27/2020	These Function Declarations were moved from EBTKS.cpp to here.
 //
 
-#include "SD.h"
-#include "EBTKS_Tape_Drive.h"
-
 //
 //  1MB5/disk functions
 //

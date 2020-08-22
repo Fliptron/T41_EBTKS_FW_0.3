@@ -1,32 +1,23 @@
 #include <Arduino.h>
 #include <setjmp.h>
-#include "USBHost_t36.h"
-#include "EBTKS_Term85.h"
-
-#include "EBTKS.h"
-#include "EBTKS_Config.h"
-//#include "SD.h"
-//##DISABLED##//#include "cpm_emu.h"
-#include "Adafruit_GFX.h"
-#include "Adafruit_SSD1306.h"
-
-
-//##DISABLED##//#define NUM_CPM_DISK 4 //number of emulated cp/m disk drives
-
-//##DISABLED##//File dfile[NUM_CPM_DISK]; // file pointers for the kaypro4 disk images
-
 
 //  The next line must exist in just one compilation unit, which is this file.
 //  All other usage of the globals file msut not have this line, leaving ALLOCATE undefined
 #define ALLOCATE  1
-#include "EBTKS_Global_Data.h"
 
-//  Note about # include order: EBTKS_Global_Data.h defines "struct Config", and EBTKS_Function_Declarations.h declares
-//  functions that include "struct Config" data types in their parameters, so EBTKS_Global_Data.h must be included before
-//  EBTKS_Function_Declarations.h
+#include "Inc_Common_Headers.h"
 
-#include "EBTKS_Function_Declarations.h"
-#include "SD.h"
+#include "USBHost_t36.h"
+//##DISABLED##//#include "cpm_emu.h"
+#include "Adafruit_GFX.h"
+#include "Adafruit_SSD1306.h"
+#include "EBTKS_Term85.h"
+
+
+
+//##DISABLED##//#define NUM_CPM_DISK 4 //number of emulated cp/m disk drives
+//##DISABLED##//File dfile[NUM_CPM_DISK]; // file pointers for the kaypro4 disk images
+
 extern void lisp_do_repl(void);
 
 USBHost myusb;
