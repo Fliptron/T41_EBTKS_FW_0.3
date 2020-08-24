@@ -330,8 +330,8 @@ void loopTranslator(void)
         {
         if (prevInt == false)
             {
-            Serial.print("HP85 interrupted us\n");
-            writeStatus(PSR_PACK);
+            LOGPRINTF_1MB5("HP85 interrupted us\n");    //  This happens the least significant bit of the CCR register in the 1MB5 is set
+            writeStatus(PSR_PACK);                      //  In real hardware this would be an interrupt sent to the 8049 microprocessor
             }
         prevInt = true;
         }

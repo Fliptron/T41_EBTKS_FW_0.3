@@ -115,6 +115,7 @@ void AUXROM_Fetch_Memory(uint8_t * dest, uint16_t src_addr, uint16_t num_bytes);
 void AUXROM_Fetch_Parameters(void * Parameter_Block_XXX , uint16_t num_bytes);
 double cvt_R12_real_to_double(uint8_t number[]);
 uint32_t cvt_R12_int_to_uint32(uint8_t number[]);
+void cvt_int32_to_HP85_number(uint8_t * dest, int val);
 
 //
 //  Utility Functions

@@ -37,8 +37,18 @@
 //
 //  Enables for code modules             THESE ARE IN USE                         <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 //
+//  Logging controll is one of 3 levels:    LOG_NONE      for no logging
+//                                          LOG_SERIAL    for Serial.printf
+//                                          LOG_FILE      for LOG File
+//
 
-#define LOGLEVEL_1MB5               0     //  0 for no logging, 1 for Serial.printf, 2 for LOG File  .   This is used further down in this file
+#define LOG_NONE                  (0)
+#define LOG_SERIAL                (1)
+#define LOG_FILE                  (2)
+
+#define LOGLEVEL_GEN              LOG_FILE      //  For General Logging
+#define LOGLEVEL_AUX              LOG_SERIAL    //  For AUXROM Logging
+#define LOGLEVEL_1MB5             LOG_NONE      //  For 1MB5 activity
 
 //
 //      Enable if we decide to use LISP as a scripting language

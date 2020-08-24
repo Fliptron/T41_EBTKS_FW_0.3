@@ -549,18 +549,43 @@
 //  Log file support
 //
 
-#define  LOGPRINTF(...)  do {sprintf(logfile_temp_text, __VA_ARGS__); append_to_logfile(logfile_temp_text); } while(0)
-//  #define  LOGPRINTF(...)  Append_to_Logfile(__VA_ARGS__);  for future use
+#if LOGLEVEL_GEN == LOG_NONE
+#define LOGPRINTF(...) do {} while(0)
+#endif
 
-#if LOGLEVEL_1MB5 == 0
+#if LOGLEVEL_GEN == LOG_SERIAL
+#define LOGPRINTF(...) do {Serial.printf(__VA_ARGS__); } while(0)
+#endif
+
+#if LOGLEVEL_GEN == LOG_FILE
+#define  LOGPRINTF(...)  do {sprintf(logfile_temp_text, __VA_ARGS__); append_to_logfile(logfile_temp_text); } while(0)
+#endif
+
+
+
+#if LOGLEVEL_AUX == LOG_NONE
+#define LOGPRINTF_AUX(...) do {} while(0)
+#endif
+
+#if LOGLEVEL_AUX == LOG_SERIAL
+#define LOGPRINTF_AUX(...) do {Serial.printf(__VA_ARGS__); } while(0)
+#endif
+
+#if LOGLEVEL_AUX == LOG_FILE
+#define  LOGPRINT_AUXF(...)  do {sprintf(logfile_temp_text, __VA_ARGS__); append_to_logfile(logfile_temp_text); } while(0)
+#endif
+
+
+
+#if LOGLEVEL_1MB5 == LOG_NONE
 #define LOGPRINTF_1MB5(...) do {} while(0)
 #endif
 
-#if LOGLEVEL_1MB5 == 1
+#if LOGLEVEL_1MB5 == LOG_SERIAL
 #define LOGPRINTF_1MB5(...) do {Serial.printf(__VA_ARGS__); } while(0)
 #endif
 
-#if LOGLEVEL_1MB5 == 2
+#if LOGLEVEL_1MB5 == LOG_FILE
 #define  LOGPRINTF_1MB5(...) do {sprintf(logfile_temp_text, __VA_ARGS__); append_to_logfile(logfile_temp_text); } while(0)
 #endif
 

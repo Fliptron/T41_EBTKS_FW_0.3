@@ -7,6 +7,21 @@
 
 #include "Inc_Common_Headers.h"
 
+//
+//  USAGE Codes from the AUXROMs
+//
+
+#define  AUX_USAGE_WROM         (1)               //  write buffer to AUXROM#/ADDR, re-checksum
+#define  AUX_USAGE_SDCD         (2)               //  change the current SD directory
+#define  AUX_USAGE_SDCUR        (3)               //  return the current SD directory
+#define  AUX_USAGE_SDCAT        (4)               //  get a directory listing entry for the current SD path (A.BOPT60=0 for "find first", =1 for "find next")
+#define  AUX_USAGE_SDFLSH       (5)               //  flush everything or a specific file#
+
+#define  AUX_USAGE_AUX3NUMS     (256)             //  test keyword with 3 numeric values on R12
+#define  AUX_USAGE_AUX1STRREF   (257)             //  TEST KEYWORD WITH 1 STRING REF ON R12
+#define  AUX_USAGE_NFUNC        (258)             //  numeric function with 1 numeric arg
+#define  AUX_USAGE_SFUNC        (259)             //  string function with 1 string arg
+
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////// 
 
@@ -31,86 +46,87 @@ void AUXROM_Poll(void)
 {
   int32_t     param_number;
   int         i;
-  struct  S_HP85_String_Variable * HP85_String_Pointer;
+  struct      S_HP85_String_Variable * HP85_String_Pointer;
+  int32_t     param_1_val;
 
   if(!new_AUXROM_Alert)
   {
     return;
   }
 
-  LOGPRINTF("AUXROM Function called. Expected Mailbox 0, Got Mailbox # %d\n", Mailbox_to_be_processed);  
-  LOGPRINTF("AUXROM Got Usage %d\n", AUXROM_RAM_Window.as_struct.AR_Usages[Mailbox_to_be_processed]);
-  LOGPRINTF("R12, got %06o\n", AUXROM_RAM_Window.as_struct.AR_R12_copy);
+  LOGPRINTF_AUX("AUXROM Function called. Expected Mailbox 0, Got Mailbox # %d\n", Mailbox_to_be_processed);  
+  LOGPRINTF_AUX("AUXROM Got Usage %d\n", AUXROM_RAM_Window.as_struct.AR_Usages[Mailbox_to_be_processed]);
+  LOGPRINTF_AUX("R12, got %06o\n", AUXROM_RAM_Window.as_struct.AR_R12_copy);
 
   switch(AUXROM_RAM_Window.as_struct.AR_Usages[Mailbox_to_be_processed])
   {
-    case 1:   //  AUX3NUMS
-    //
-    //  From email with Everett, 8/9/2020 @ 11:33
-    //
-    //  AUX3NUMS n1, n2, n3
-    //  a) When AUX3NUMS runtime gets called, leave the three 8-byte values
-    //     on the stack, write the R12 value to A.MBR12.
-    //  b) Send a message to EBTKS:
-    //      Write "TEST" to BUF0
-    //      Write 1 to USAGE0
-    //      Write 1 to Mailbox0
-    //  b') Write 0 to 177740  (HEYEBTKS)
-    //  c) Wait for MailBox0==0
-    //  d) If USAGE0==0, throw away 24-bytes from R12, else load R12
-    //     from A.MBR12 (assuming EBTKS is "popping the values").
-    //
-      AUXROM_RAM_Window.as_struct.AR_Usages[Mailbox_to_be_processed] = 1;   //  Success
-      //Serial.printf("R12, got %06o   ", AUXROM_RAM_Window.as_struct.AR_R12_copy);
+    case AUX_USAGE_AUX3NUMS:
+      //
+      //  From email with Everett, 8/9/2020 @ 11:33
+      //
+      //  AUX3NUMS n1, n2, n3
+      //  a) When AUX3NUMS runtime gets called, leave the three 8-byte values
+      //     on the stack, write the R12 value to A.MBR12.
+      //  b) Send a message to EBTKS:
+      //      Write "TEST" to BUF0
+      //      Write 1 to USAGE0
+      //      Write 1 to Mailbox0
+      //  b') Write 0 to 177740  (HEYEBTKS)
+      //  c) Wait for MailBox0==0
+      //  d) If USAGE0==0, throw away 24-bytes from R12, else load R12
+      //     from A.MBR12 (assuming EBTKS is "popping the values").
+      //
+      //LOGPRINTF_AUX("R12, got %06o   ", AUXROM_RAM_Window.as_struct.AR_R12_copy);
       AUXROM_Fetch_Parameters(&Parameter_blocks.Parameter_Block_N_N_N_N_N_N.numbers[0].real_bytes[0] , 3*8);
-      //for(param_number = 0 ; param_number < 3 ; param_number++)
-      //{
-      //  hexdump(&Parameter_blocks.Parameter_Block_N_N_N_N_N_N.numbers[param_number].real_bytes[0], 8, false, false);
-      //  Serial.printf("    ");
-      //}
-      //Serial.printf("\n                ");
+
+      for(param_number = 0 ; param_number < 3 ; param_number++)
+      {
+        hexdump(&Parameter_blocks.Parameter_Block_N_N_N_N_N_N.numbers[param_number].real_bytes[0], 8, false, false);
+        Serial.printf("    ");
+      }
+      Serial.printf("\n                ");
+
       for(param_number = 0 ; param_number < 3 ; param_number++)
       {
         if(Parameter_blocks.Parameter_Block_N_N_N_N_N_N.numbers[param_number].real_bytes[4] == 0xFF)
         { //  The parameter is a tagged integer
-          Serial.printf("  Integer %7d           ", cvt_R12_int_to_uint32(&Parameter_blocks.Parameter_Block_N_N_N_N_N_N.numbers[param_number].real_bytes[0]));
+          LOGPRINTF_AUX("  Integer %7d           ", cvt_R12_int_to_uint32(&Parameter_blocks.Parameter_Block_N_N_N_N_N_N.numbers[param_number].real_bytes[0]));
         }
         else
         {
-          Serial.printf("  Real %20.14G ", cvt_R12_real_to_double(&Parameter_blocks.Parameter_Block_N_N_N_N_N_N.numbers[param_number].real_bytes[0]));
+          LOGPRINTF_AUX("  Real %20.14G ", cvt_R12_real_to_double(&Parameter_blocks.Parameter_Block_N_N_N_N_N_N.numbers[param_number].real_bytes[0]));
         }
       }
-      Serial.printf("\n");
-      AUXROM_RAM_Window.as_struct.AR_R12_copy -= 24;  //  If this is wrong, we get "Error 15 : System"
+      LOGPRINTF_AUX("\n");
       AUXROM_RAM_Window.as_struct.AR_Usages[Mailbox_to_be_processed] = 1;         //  Claim success
       break;
-    case 2:   //  AUX1STRREF
-    //
-    //  From email with Everett, 8/9/2020 @ 11:33
-    //
-    //  AUX1STRREF A$
-    //  a) When AUX1STRREF runtime gets called, leave the string reference 
-    //    on the stack, write the R12 value to A.MBR12.
-    //  b) Send a message to EBTKS:
-    //      Write "TEST" to BUF0
-    //      Write 2 to USAGE0
-    //      Write 1 to Mailbbox0
-    //  b') Write 0 to 177740  (HEYEBTKS)
-    //  c) Wait for Mailbox==0
-    //  d) If USAGE0==0, throw away the strref from R12, else load R12
-    //     from A.MBR12.
-    //
-    //  Discovered: what is passed is the pointer to the text part of the string. There is a header of
-    //  8 bytes prior to this point, documented on page 5-32 of the HP-85 Assembler manual. Of these
-    //  8 bytes, the last 2 (just before the text area starts) is the Valid Length of the text. For
-    //  a string variable like A$, if not dimensioned, 18 bytes are allocated for the text area, and
-    //  the 4 bytes prior to the just mentioned Valid Length are two copies of the Max Length, which
-    //  is 18 (22 octal). So we will be needing the Valid Length.
-    //  Not documented: If the String Variable is un-initialized, its Actual_Length is -1
-    //
-      AUXROM_RAM_Window.as_struct.AR_Usages[Mailbox_to_be_processed] = 1;         //  Success
+    case AUX_USAGE_AUX1STRREF:
+      //
+      //  From email with Everett, 8/9/2020 @ 11:33
+      //
+      //  AUX1STRREF A$
+      //  a) When AUX1STRREF runtime gets called, leave the string reference 
+      //    on the stack, write the R12 value to A.MBR12.
+      //  b) Send a message to EBTKS:
+      //      Write "TEST" to BUF0
+      //      Write 2 to USAGE0
+      //      Write 1 to Mailbbox0
+      //  b') Write 0 to 177740  (HEYEBTKS)
+      //  c) Wait for Mailbox==0
+      //  d) If USAGE0==0, throw away the strref from R12, else load R12
+      //     from A.MBR12.
+      //
+      //  Discovered: what is passed is the pointer to the text part of the string. There is a header of
+      //  8 bytes prior to this point, documented on page 5-32 of the HP-85 Assembler manual. Of these
+      //  8 bytes, the last 2 (just before the text area starts) is the Valid Length of the text. For
+      //  a string variable like A$, if not dimensioned, 18 bytes are allocated for the text area, and
+      //  the 4 bytes prior to the just mentioned Valid Length are two copies of the Max Length, which
+      //  is 18 (22 octal). So we will be needing the Valid Length.
+      //  Not documented: If the String Variable is un-initialized, its Actual_Length is -1
+      //
+
       AUXROM_Fetch_Parameters(&Parameter_blocks.Parameter_Block_S.string.unuseable_abs_rel_addr , 6);
-      Serial.printf("Unuseable Addr %06o   Length %06o  Address Passed %06o\n" ,
+      LOGPRINTF_AUX("Unuseable Addr %06o   Length %06o  Address Passed %06o\n" ,
                         Parameter_blocks.Parameter_Block_S.string.unuseable_abs_rel_addr,
                         Parameter_blocks.Parameter_Block_S.string.length,
                         Parameter_blocks.Parameter_Block_S.string.address );
@@ -124,30 +140,45 @@ void AUXROM_Poll(void)
       //  these variables are getting unwieldly. try and make it simple
       //
       HP85_String_Pointer = (struct  S_HP85_String_Variable *)(&AUXROM_RAM_Window.as_struct.AR_Buffer_6[0]);
-      Serial.printf("String Header Flags bytes %03o , %03o TotalLen %4d MaxLen %4d Actual Len %5d\n", HP85_String_Pointer->flags_1, HP85_String_Pointer->flags_2,
+      LOGPRINTF_AUX("String Header Flags bytes %03o , %03o TotalLen %4d MaxLen %4d Actual Len %5d\n", HP85_String_Pointer->flags_1, HP85_String_Pointer->flags_2,
                     HP85_String_Pointer->Total_Length, HP85_String_Pointer->Max_Length, HP85_String_Pointer->Actual_Length);
       if(HP85_String_Pointer->Actual_Length == -1)
       {
-        Serial.printf("String Variable is uninitialized\n");
+        LOGPRINTF_AUX("String Variable is uninitialized\n");
       }
       else
       {
-        Serial.printf("[%.*s]\n", HP85_String_Pointer->Actual_Length, HP85_String_Pointer->text);
-        Serial.printf("Dump of Header and Text area\n");
+        LOGPRINTF_AUX("[%.*s]\n", HP85_String_Pointer->Actual_Length, HP85_String_Pointer->text);
+        LOGPRINTF_AUX("Dump of Header and Text area\n");
         for(i = 0 ; i < HP85_String_Pointer->Total_Length + 10 ; i++)
         {
-          Serial.printf("%02X ", AUXROM_RAM_Window.as_struct.AR_Buffer_6[i]);
-          if(i == 7) Serial.printf("\n");        //  a new line after the header portion
+          LOGPRINTF_AUX("%02X ", AUXROM_RAM_Window.as_struct.AR_Buffer_6[i]);
+          if(i == 7) LOGPRINTF_AUX("\n");        //  a new line after the header portion
         }
-        Serial.printf("\n");
+        LOGPRINTF_AUX("\n");
       }
-
-      AUXROM_RAM_Window.as_struct.AR_R12_copy -= 6;                               //  If this is wrong, we get "Error 15 : System"
       AUXROM_RAM_Window.as_struct.AR_Usages[Mailbox_to_be_processed] = 1;         //  Claim success
+      break;
+    case AUX_USAGE_NFUNC:     //  HP85 function is TESTNUMFUN(123.456) returns 7 times the value
+                              //  In bound number is on the R12 stack, result goes into Buffer 6 (8 bytes)
+      AUXROM_Fetch_Parameters(&Parameter_blocks.Parameter_Block_N_N_N_N_N_N.numbers[0].real_bytes[0] , 8);    //  Get one 8 byte number off the stack
+      //
+      //  Convert the R12 number to int32_t, manipulate it some how, and convert back and put in Buf 6
+      //
+      Serial.printf("Input number: ");
+      hexdump(&Parameter_blocks.Parameter_Block_N_N_N_N_N_N.numbers[0].real_bytes[0], 8, false, false);
+      param_1_val = cvt_R12_int_to_uint32(&Parameter_blocks.Parameter_Block_N_N_N_N_N_N.numbers[0].real_bytes[0]);
+      Serial.printf(" %6d(dec)   ", param_1_val);
+      cvt_int32_to_HP85_number(&AUXROM_RAM_Window.as_struct.AR_Buffer_6[0], param_1_val);
+      Serial.printf("     Output number: ");
+      hexdump(&AUXROM_RAM_Window.as_struct.AR_Buffer_6[0], 8, false, true);
+      AUXROM_RAM_Window.as_struct.AR_Usages[Mailbox_to_be_processed] = 1;     //  Success
+      break;
+    case AUX_USAGE_SFUNC:
       break;
 
     default:
-      AUXROM_RAM_Window.as_struct.AR_Usages[Mailbox_to_be_processed] = 0;   //  Failure, unrecognized Usage code
+      AUXROM_RAM_Window.as_struct.AR_Usages[Mailbox_to_be_processed] = 0;     //  Failure, unrecognized Usage code
   }
 
   new_AUXROM_Alert = false;
@@ -278,4 +309,72 @@ uint32_t cvt_R12_int_to_uint32(uint8_t number[])
     result = result - 1000000;  //  Minus one million because the sign indicator is a 9, so neg numbers will be 9xxxxx
   }
   return result;
+}
+
+//
+//  This function converts a 32 bit integer to a HP number, and correctly deals with Tagged Integer results or Reals
+//
+//  Dest points to an 8 byte area that can hold an 8 byte real or a tagged integer
+//
+//  Examples of how HP85 numbers are encoded
+//                  0                           1                          -1
+//    00 00 00 00 FF 00 00 00     00 00 00 00 FF 01 00 00     00 00 00 00 FF 99 99 99     
+//
+//                10                         100                        1000
+//    00 00 00 00 FF 10 00 00     00 00 00 00 FF 00 01 00     00 00 00 00 FF 00 10 00
+//
+//                999                         9999                     99999
+//    00 00 00 00 FF 99 09 00     00 00 00 00 FF 99 99 00     00 00 00 00 FF 99 99 09
+//
+//                -10                        -100                       -1000
+//    00 00 00 00 FF 90 99 99     00 00 00 00 FF 00 99 99     00 00 00 00 FF 00 90 99
+//
+//               -999                        -9999                    -99999
+//    00 00 00 00 FF 01 90 99     00 00 00 00 FF 01 00 99     00 00 00 00 FF 01 00 90
+//    Sign Digit           ^                           ^                           ^
+
+//  Format "[%06d]" on ARM
+//          0         1        -1
+//    [000000]  [000001]  [-00001]
+//
+//         10       100      1000
+//    [000010]  [000100]  [001000]
+//
+//        999      9999     99999
+//    [000999]  [009999]  [099999]
+//
+//        -10      -100     -1000
+//    [-00010]  [-00100]  [-01000]
+//
+//       -999     -9999    -99999
+//    [-00999]  [-09999]  [-99999]
+//
+//  This conversion is going to be such a pain
+//
+
+void cvt_int32_to_HP85_number(uint8_t * dest, int val)
+{
+  char  val_chars[20];
+  bool  negative;
+
+  if((val<100000) && (val > -100000))
+  {
+    //
+    //  The result can be formatted as a tagged integer
+    //
+    //  Handle negative numbers in 10's complement format
+    //
+    negative = val < 0;
+    if(negative)
+    {
+      val = 100000 + val;
+    }
+    dest += 4;                            //  We know we are doing a tagged integer, so skip the first 4 bytes
+    *dest++ = 0377;                       //  Tag it as an integer
+    sprintf(val_chars, "%06d", val);      //  Convert to decimal
+    *dest++ = (val_chars[5] & 0x0F) | ((val_chars[4] & 0x0F) << 4);
+    *dest++ = (val_chars[3] & 0x0F) | ((val_chars[2] & 0x0F) << 4);
+    *dest++ = (val_chars[1] & 0x0F) | (negative? 0x90 : 0x00);
+    return;
+  }
 }
