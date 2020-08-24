@@ -188,7 +188,7 @@ struct S_Command_Entry Command_Table[] =
   {"clean_logfile",    clean_logfile},
   {"addr",             proc_addr},
   {"auxint",           proc_auxint},
-//  {"jo",               just_once_func},
+  {"jo",               just_once_func},
   {"dump_ram_window",  dump_ram_window},
   {"jay_pi",           jay_pi},
   {"ulisp",            ulisp},
@@ -746,16 +746,23 @@ void proc_auxint(void)
 
 void just_once_func(void)
 {
+  if(just_once) return;
+
   just_once = 1;
-  while(just_once){}
-  Serial.printf("var name here  %08X  ", just_once );   //  insert correct variable names when adding a temp diagnostic
-  Serial.printf("var name here  %08X  ", just_once );
-  Serial.printf("var name here  %08X  ", just_once );
-  Serial.printf("var name here  %08X  ", just_once );
-  Serial.printf("var name here  %08X  ", just_once );
-  Serial.printf("var name here  %08X  ", just_once );
-  Serial.printf("var name here  %08X  ", just_once );
-  Serial.printf("\n");
+
+  Serial.printf("Describe the Just Once change\n");
+
+//
+//  Do the just once stuff here.
+//  
+//  Serial.printf("var name here  %08X  ", just_once );   //  insert correct variable names when adding a temp diagnostic
+//  Serial.printf("var name here  %08X  ", just_once );
+//  Serial.printf("var name here  %08X  ", just_once );
+//  Serial.printf("var name here  %08X  ", just_once );
+//  Serial.printf("var name here  %08X  ", just_once );
+//  Serial.printf("var name here  %08X  ", just_once );
+//  Serial.printf("var name here  %08X  ", just_once );
+//  Serial.printf("\n");
 }
 
 void dump_ram_window(void)      //  dump_ram_window Start(8) Len(8)    dump memory from the AUXROM RAM area
