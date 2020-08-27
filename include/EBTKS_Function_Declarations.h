@@ -57,7 +57,7 @@ void ioWriteCrtBad(uint8_t val);
 void ioWriteCrtCtrl(uint8_t val);
 void ioWriteCrtDat(uint8_t val);
 void dumpCrtAlpha(void);
-void Write_on_CRT_Alpha(uint16_t row, uint16_t column, uint8_t text[]);
+void Write_on_CRT_Alpha(uint16_t row, uint16_t column, const char *  text);
 void a3_to_a4(unsigned char *a4, unsigned char *a3);
 int  base64_encode(char *output, char *input, int inputLen);
 void dumpCrtAlphaAsJSON(void);
@@ -91,8 +91,9 @@ void mySystick_isr(void);
 
 bool loadRom(const char *fname, int slotNum, const char * description);
 void saveConfiguration(const char *filename, const Config &config);
-void loadConfiguration(const char *filename, Config &config);
+bool loadConfiguration(const char *filename, Config &config);
 void printDirectory(File dir, int numTabs);
+void no_SD_card_message(void);
 
 //
 //  Log File support
@@ -113,9 +114,10 @@ void ioWriteAuxROM_Alert(uint8_t val);
 void AUXROM_Poll(void);
 void AUXROM_Fetch_Memory(uint8_t * dest, uint16_t src_addr, uint16_t num_bytes);
 void AUXROM_Fetch_Parameters(void * Parameter_Block_XXX , uint16_t num_bytes);
-double cvt_R12_real_to_double(uint8_t number[]);
-uint32_t cvt_R12_int_to_uint32(uint8_t number[]);
-void cvt_int32_to_HP85_number(uint8_t * dest, int val);
+double cvt_HP85_real_to_IEEE_double(uint8_t number[]);
+int32_t cvt_R12_int_to_int32(uint8_t number[]);
+//void cvt_int32_to_HP85_tagged_integer(uint8_t * dest, int val);
+void cvt_IEEE_double_to_HP85_number(uint8_t * dest, double val);
 
 //
 //  Utility Functions
@@ -138,7 +140,10 @@ void Setup_Logic_analyzer(void);
 void Simple_Graphics_Test(void);
 
 bool is_HP85_idle(void);
+
+#if ENABLE_THREE_SHIFT_DETECTION
 bool test_for_three_shift_clicks(void);
+#endif
 
 //
 //  Functions that Visual Studio Code can't find, but are in the Arduino library.

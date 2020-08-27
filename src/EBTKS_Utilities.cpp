@@ -141,6 +141,7 @@ void clean_logfile(void);
 void proc_addr(void);
 void proc_auxint(void);
 void just_once_func(void);
+void pulse_PWO(void);
 void dump_ram_window(void);
 void jay_pi(void);
 void ulisp(void);
@@ -189,6 +190,7 @@ struct S_Command_Entry Command_Table[] =
   {"addr",             proc_addr},
   {"auxint",           proc_auxint},
   {"jo",               just_once_func},
+  {"pwo",              pulse_PWO},
   {"dump_ram_window",  dump_ram_window},
   {"jay_pi",           jay_pi},
   {"ulisp",            ulisp},
@@ -379,6 +381,7 @@ bool is_HP85_idle(void)
   return false;
 }
 
+#if ENABLE_THREE_SHIFT_DETECTION
 int             shift_pressed_duration = 0;         // in units of 10 ms
 bool            click_seq_in_progress = false;
 uint8_t         clicks_so_far = 0;
@@ -483,6 +486,8 @@ bool test_for_three_shift_clicks(void)
   //  Serial.printf("f");
   return false;   //  we exit here after the second click.
 }
+
+#endif        //  ENABLE_THREE_SHIFT_DETECTION
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////  All the simple commands
 
@@ -590,6 +595,7 @@ void help_6(void)
   Serial.printf("clean_logfile\n");
   Serial.printf("auxint\n");
   Serial.printf("jo\n");
+  Serial.printf("pwo\n");
   Serial.printf("jay_pi\n");
   Serial.printf("reset #Reset HP85 and EBTKS\n");
   Serial.printf("\n");
@@ -765,6 +771,24 @@ void just_once_func(void)
 //  Serial.printf("\n");
 }
 
+void pulse_PWO(void)
+{
+  ASSERT_PWO_OUT;                       //  Reset the HP85
+  pinMode(CORE_PIN_PWO_O, OUTPUT);      //  Core Pin 36 (Physical pin 28) is pulled high by an external resistor, which turns on the FET,
+                                        //  which pulls the PWO line low, which resets the HP-85
+  ASSERT_PWO_OUT;                       //  Over-ride external pull up resistor, still put High on gate, thus holdimg PWO on I/O bus Low
+
+//  longjmp(PWO_While_Running, 99);     //  This may not be sufficient, since it doesn't run startup.c
+
+//
+//  According to research, this is equivalent to a cold start, which should do whatever the CPU defaults to then go to the ResetHandler()
+//
+//  See Teensy 4.0 Notes about this magic
+
+  SCB_AIRCR = 0x05FA0004;
+
+}
+
 void dump_ram_window(void)      //  dump_ram_window Start(8) Len(8)    dump memory from the AUXROM RAM area
 {
   uint32_t    dump_start, dump_len;
@@ -837,6 +861,19 @@ void jay_pi(void)
 
 }
 
+void no_SD_card_message(void)
+{
+  Write_on_CRT_Alpha(2, 0, "Hello,,");
+  Write_on_CRT_Alpha(3, 0, "You have installed an EBTKS, but");
+  Write_on_CRT_Alpha(4, 0, "it seems to not have an SD card");
+  Write_on_CRT_Alpha(5, 0, "installed. Without it, EBTKS");
+  Write_on_CRT_Alpha(6, 0, "won't work. No ROMs, Tape, or");
+  Write_on_CRT_Alpha(7, 0, "Disk");
+  Write_on_CRT_Alpha(8, 0, "I suggest a class 10, 16 GB card");
+  Write_on_CRT_Alpha(9, 0, "with the standard EBTKS file set");
+  Serial.printf("\nMessage sent to CRT advising that there is no SD card\n");
+}
+    
 void ulisp(void)
 {
 #if ENABLE_LISP

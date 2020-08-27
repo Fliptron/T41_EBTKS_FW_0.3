@@ -46,9 +46,11 @@
 #define LOG_SERIAL                (1)
 #define LOG_FILE                  (2)
 
-#define LOGLEVEL_GEN              LOG_FILE      //  For General Logging
-#define LOGLEVEL_AUX              LOG_SERIAL    //  For AUXROM Logging
-#define LOGLEVEL_1MB5             LOG_NONE      //  For 1MB5 activity
+#define LOGLEVEL_GEN              LOG_SERIAL      //  For General Logging
+#define LOGLEVEL_AUX              LOG_SERIAL      //  For AUXROM Logging
+#define LOGLEVEL_1MB5             LOG_NONE        //  For 1MB5 activity
+
+#define ENABLE_THREE_SHIFT_DETECTION    (0)       //  This seems to be the cause of crashes, if the general keyboard keys are pressed when the computer is busy
 
 //
 //      Enable if we decide to use LISP as a scripting language
@@ -85,8 +87,6 @@
 //    Tracking the CRT activity. Can be used to dump to a remote file or printer, and
 //    also needed if we want to scribble on the screen
 //
-
-#define CRT_ADDR 0177404 //  CRTSAD crt controller occupies four bytes
 
 #define DUMP_HEIGHT (16)
 

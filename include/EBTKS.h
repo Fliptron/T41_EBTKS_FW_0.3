@@ -551,14 +551,12 @@
 
 #if LOGLEVEL_GEN == LOG_NONE
 #define LOGPRINTF(...) do {} while(0)
-#endif
-
-#if LOGLEVEL_GEN == LOG_SERIAL
+#elif LOGLEVEL_GEN == LOG_SERIAL
 #define LOGPRINTF(...) do {Serial.printf(__VA_ARGS__); } while(0)
-#endif
-
-#if LOGLEVEL_GEN == LOG_FILE
+#elif LOGLEVEL_GEN == LOG_FILE
 #define  LOGPRINTF(...)  do {sprintf(logfile_temp_text, __VA_ARGS__); append_to_logfile(logfile_temp_text); } while(0)
+#else
+#error LOGLEVEL_GEN is invalid
 #endif
 
 

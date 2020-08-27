@@ -110,14 +110,15 @@ void ioWriteCrtDat(uint8_t val)                             //  This function is
 //  Row is 0..15 , Column is 0..31  . Row 0 is top , column 0 is left
 //
 
-void Write_on_CRT_Alpha(uint16_t row, uint16_t column, uint8_t text[])
+void Write_on_CRT_Alpha(uint16_t row, uint16_t column, const char * text)
 {
   uint16_t        badAddr_restore;
   uint16_t        local_badAddr;
 
   if (crtControl & 0x80)
   {
-    return;                     //  CRT is in Graphics mode, so just ignore for now. Maybe later we will allow writing text to the Graphics screen (Implies a Character ROM) 
+    return;     //  CRT is in Graphics mode, so just ignore for now. Maybe later
+                //  we will allow writing text to the Graphics screen (Implies a Character ROM) 
   }  
 
   badAddr_restore = badAddr;
@@ -129,12 +130,20 @@ void Write_on_CRT_Alpha(uint16_t row, uint16_t column, uint8_t text[])
   //  the 3rd character position, row would be 15, and column would be 2
   //
 
-  local_badAddr = (sadAddr + (column & 0x1F) * 2 + (row & 0x0F) * 64 ) & 0x0FFF;
+  local_badAddr = (sadAddr + (column & 0x1F) * 2 + (row & 0x0F) * 64 ) & 0x0FFF;    //  32 x 16 x 4 x 2 = 4096  .  chars/line, lines per screen, screens, nibbles per char
+
+  Serial.printf("Writing to CRT at Row %d   Col %d   sadAddr is %d   badAddr is %d\n", row, column, sadAddr, badAddr);
+  Serial.printf("Basic thinks sadAddr is %d   badAddr is %d\n", DMA_Peek16(CRTRAM), DMA_Peek16(CRTBYT));
+
+  Serial.printf("resolved local badAddr for Text is %d\n", local_badAddr);
+
   DMA_Poke16(CRTBAD, local_badAddr);
 
   while(*text)
   {
-    while(DMA_Peek8(CRTSTS) & 0x80) {};     //  Wait while CRT is Busy, wait
+    while(DMA_Peek8(CRTSTS) & 0x80)
+    {        //  Wait while CRT is Busy
+    }
     DMA_Poke8 (CRTDAT, *text);
     text++;
   }

@@ -230,11 +230,13 @@ void saveConfiguration(const char *filename, const Config &config)
 }
 
 //
-//  Loads the configuration from a file
+//  Loads the configuration from a file, return true if successful
 //
 
-void loadConfiguration(const char *filename, Config &config)
+bool loadConfiguration(const char *filename, Config &config)
 {
+   bool tapeEmu;
+
   TXD_Pulser(1);
   EBTKS_delay_ns(10000);    //  10 us
   TXD_Pulser(1);
@@ -247,7 +249,19 @@ void loadConfiguration(const char *filename, Config &config)
   // Open file for reading
   File file = SD.open(filename);
 
-   LOGPRINTF("File handle for config file %d\n", (int)file);
+  LOGPRINTF("File handle for config file %d\n", (int)file);
+
+  if(!file)
+  {
+    //
+    //  No SD card, so no tape, no disk, no ROMs
+    //
+    config.ram16k = false;
+    config.screenEmu = false;
+    tapeEmu = false;
+    tape.enable(tapeEmu);
+    return false;
+  }
 
   // Allocate a temporary JsonDocument
   // Don't forget to change the capacity to match your requirements.
@@ -269,7 +283,7 @@ void loadConfiguration(const char *filename, Config &config)
   LOGPRINTF("16K RAM for 85A:      %s\n", config.ram16k ? "Active" : "Inactive");
   config.screenEmu = doc["screenEmu"] | false;
   LOGPRINTF("Screen Emulation:     %s\n", config.screenEmu ? "Active" : "Inactive");
-  bool tapeEmu = doc["tape"]["enable"] | false;
+  tapeEmu = doc["tape"]["enable"] | false;
   //LOGPRINTF("Tape Drive Emulation: %s\n", config.tapeEmu ? "Active" : "Inactive");
 
   const char *tapeFname=  doc["tape"]["filename"] | "tape1.tap";
@@ -357,7 +371,7 @@ void loadConfiguration(const char *filename, Config &config)
   EBTKS_delay_ns(10000);    //  10 us
   TXD_Pulser(1);
   EBTKS_delay_ns(10000);    //  10 us
-
+  return true;    //  maybe we should be more specific about individual successes and failures. Currently only return false if no SD card
 }
 
 void printDirectory(File dir, int numTabs) 

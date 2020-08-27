@@ -434,6 +434,7 @@ void setup()
   int   setjmp_reason;
   int   message_count = 0;
   int   i, j;
+  bool  config_success;
 
   setjmp_reason = setjmp(PWO_While_Running);
   if(setjmp_reason == 99)
@@ -618,7 +619,7 @@ void setup()
 
   initTranslator(); //init hpib/disk code
 
-  loadConfiguration(Config_filename, config);  // with 8 ROMs being loaded and JSON parsing of CONFIG.TXT , 56 ms
+  config_success = loadConfiguration(Config_filename, config);  // with 8 ROMs being loaded and JSON parsing of CONFIG.TXT , 56 ms
 
   setupPinChange();         //  Set up the two critical interrupt handlers on Pin Change (rising) on Phi 1 and Phi 2
 
@@ -692,7 +693,12 @@ void setup()
   //  Serial.begin(9600);                       //  USB Serial Baud value is irrelevant for this serial channel
   Serial.printf("HP-85 EBTKS Board Serial Diagnostics  %-4d\n", message_count++);
 
-  delay(1000);
+  delay(200);
+  if(!config_success)
+  {
+    delay(3000);
+    no_SD_card_message();
+  }
 
 }
 
@@ -758,10 +764,12 @@ void loop()
   tape.poll();
   AUXROM_Poll();
 
+#if ENABLE_THREE_SHIFT_DETECTION
   if(test_for_three_shift_clicks())
   {
     Serial.printf("Got 3 shift clicks\n");
   }
+#endif          //  ENABLE_THREE_SHIFT_DETECTION
 
   loopTranslator();     //  1MB5 / HPIB / DISK poll
   myusb.Task();

@@ -4,6 +4,9 @@
 
 #include <Arduino.h>
 #include <string.h>
+#include <math.h>
+#include <stdlib.h>
+
 
 #include "Inc_Common_Headers.h"
 
@@ -22,6 +25,9 @@
 #define  AUX_USAGE_NFUNC        (258)             //  numeric function with 1 numeric arg
 #define  AUX_USAGE_SFUNC        (259)             //  string function with 1 string arg
 
+
+
+#define TRACE_TESTNUMFUN         (0)
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////// 
 
@@ -47,16 +53,16 @@ void AUXROM_Poll(void)
   int32_t     param_number;
   int         i;
   struct      S_HP85_String_Variable * HP85_String_Pointer;
-  int32_t     param_1_val;
+  double      param_1_val;
 
   if(!new_AUXROM_Alert)
   {
     return;
   }
 
-  LOGPRINTF_AUX("AUXROM Function called. Expected Mailbox 0, Got Mailbox # %d\n", Mailbox_to_be_processed);  
-  LOGPRINTF_AUX("AUXROM Got Usage %d\n", AUXROM_RAM_Window.as_struct.AR_Usages[Mailbox_to_be_processed]);
-  LOGPRINTF_AUX("R12, got %06o\n", AUXROM_RAM_Window.as_struct.AR_R12_copy);
+  //LOGPRINTF_AUX("AUXROM Function called. Expected Mailbox 0, Got Mailbox # %d\n", Mailbox_to_be_processed);  
+  //LOGPRINTF_AUX("AUXROM Got Usage %d\n", AUXROM_RAM_Window.as_struct.AR_Usages[Mailbox_to_be_processed]);
+  //LOGPRINTF_AUX("R12, got %06o\n", AUXROM_RAM_Window.as_struct.AR_R12_copy);
 
   switch(AUXROM_RAM_Window.as_struct.AR_Usages[Mailbox_to_be_processed])
   {
@@ -84,22 +90,24 @@ void AUXROM_Poll(void)
         hexdump(&Parameter_blocks.Parameter_Block_N_N_N_N_N_N.numbers[param_number].real_bytes[0], 8, false, false);
         Serial.printf("    ");
       }
-      Serial.printf("\n                ");
+      Serial.printf("\n");
 
       for(param_number = 0 ; param_number < 3 ; param_number++)
       {
         if(Parameter_blocks.Parameter_Block_N_N_N_N_N_N.numbers[param_number].real_bytes[4] == 0xFF)
         { //  The parameter is a tagged integer
-          LOGPRINTF_AUX("  Integer %7d           ", cvt_R12_int_to_uint32(&Parameter_blocks.Parameter_Block_N_N_N_N_N_N.numbers[param_number].real_bytes[0]));
+          LOGPRINTF_AUX("Integer %7d       ", cvt_R12_int_to_int32(&Parameter_blocks.Parameter_Block_N_N_N_N_N_N.numbers[param_number].real_bytes[0]));
         }
         else
         {
-          LOGPRINTF_AUX("  Real %20.14G ", cvt_R12_real_to_double(&Parameter_blocks.Parameter_Block_N_N_N_N_N_N.numbers[param_number].real_bytes[0]));
+          LOGPRINTF_AUX("Real %20.14G ", cvt_HP85_real_to_IEEE_double(&Parameter_blocks.Parameter_Block_N_N_N_N_N_N.numbers[param_number].real_bytes[0]));
         }
       }
       LOGPRINTF_AUX("\n");
       AUXROM_RAM_Window.as_struct.AR_Usages[Mailbox_to_be_processed] = 1;         //  Claim success
       break;
+      
+      
     case AUX_USAGE_AUX1STRREF:
       //
       //  From email with Everett, 8/9/2020 @ 11:33
@@ -159,19 +167,32 @@ void AUXROM_Poll(void)
       }
       AUXROM_RAM_Window.as_struct.AR_Usages[Mailbox_to_be_processed] = 1;         //  Claim success
       break;
-    case AUX_USAGE_NFUNC:     //  HP85 function is TESTNUMFUN(123.456) returns 7 times the value
-                              //  In bound number is on the R12 stack, result goes into Buffer 6 (8 bytes)
-      AUXROM_Fetch_Parameters(&Parameter_blocks.Parameter_Block_N_N_N_N_N_N.numbers[0].real_bytes[0] , 8);    //  Get one 8 byte number off the stack
+
+
+    case AUX_USAGE_NFUNC:     //  HP85 function is TESTNUMFUN(123.456) returns the value after two conversions
+                              //  Inbound number is on the R12 stack, result goes into Buffer 6 (8 bytes)
+
+      AUXROM_Fetch_Parameters(&Parameter_blocks.Parameter_Block_N_N_N_N_N_N.numbers[0].real_bytes[0] , 8);    //  Get one HP85 Real 8 byte number off the stack
       //
-      //  Convert the R12 number to int32_t, manipulate it some how, and convert back and put in Buf 6
+      //  Convert the HP85 number to IEEE Double, and convert it back and put in Buf 6
       //
+      param_1_val = cvt_HP85_real_to_IEEE_double(&Parameter_blocks.Parameter_Block_N_N_N_N_N_N.numbers[0].real_bytes[0]);
+      cvt_IEEE_double_to_HP85_number(&AUXROM_RAM_Window.as_struct.AR_Buffer_6[0], param_1_val);
+
+#if TRACE_TESTNUMFUN
       Serial.printf("Input number: ");
       hexdump(&Parameter_blocks.Parameter_Block_N_N_N_N_N_N.numbers[0].real_bytes[0], 8, false, false);
-      param_1_val = cvt_R12_int_to_uint32(&Parameter_blocks.Parameter_Block_N_N_N_N_N_N.numbers[0].real_bytes[0]);
-      Serial.printf(" %6d(dec)   ", param_1_val);
-      cvt_int32_to_HP85_number(&AUXROM_RAM_Window.as_struct.AR_Buffer_6[0], param_1_val);
       Serial.printf("     Output number: ");
-      hexdump(&AUXROM_RAM_Window.as_struct.AR_Buffer_6[0], 8, false, true);
+      hexdump(&AUXROM_RAM_Window.as_struct.AR_Buffer_6[0], 8, false, false);
+      Serial.printf("difference  %.11e  ", param_1_val - cvt_HP85_real_to_IEEE_double(&AUXROM_RAM_Window.as_struct.AR_Buffer_6[0]) );
+      Serial.printf(" Value %20.14G\n", param_1_val);
+#else
+      if((param_1_val - cvt_HP85_real_to_IEEE_double(&AUXROM_RAM_Window.as_struct.AR_Buffer_6[0])) != 0)
+      {
+        Serial.printf("TESTNUMFUN ERROR converting  %20.14G\n", param_1_val);
+      }
+#endif
+
       AUXROM_RAM_Window.as_struct.AR_Usages[Mailbox_to_be_processed] = 1;     //  Success
       break;
     case AUX_USAGE_SFUNC:
@@ -242,23 +263,51 @@ void AUXROM_Fetch_Parameters(void * Parameter_Block_XXX , uint16_t num_bytes)
 //
 //  IEEE 754 Double precision starts to run out of steam at 10E308 and 10E-308 . Some de-normalized
 //  numbers extend the range out to about E320 and E-320 but you are no longer playing with 12 digits precision
+//  Decided to just clip it at E+307/E-307
 //
 
-double cvt_R12_real_to_double(uint8_t number[])
+double cvt_HP85_real_to_IEEE_double(uint8_t number[])
 {
   int         exponent;   // 3 digits, 10's complement
   double      result;
   bool        negative_mantisa;
-  char        numtext[22];
+  char        numtext[25];
 
-  exponent =  (((*(number + 0) & 0x0F)     ) * 1.0);
-  exponent += (((*(number + 0) & 0xF0) >> 4) * 10.0);
-  exponent += (((*(number + 1) & 0xF0) >> 4) * 100.0);
+  if(number[4] == 0377)
+  {   //  We have a Tagged Integer
+    return (double)cvt_R12_int_to_int32(number);
+  }
+
+  //
+  //  Handle a 12 digit Real, with an exponent between -499 and +499
+  //  IEEE Double only supports 10E308 and 10E-308 , so we cant represnt all numbers.
+  //  Do our best
+  //
+  exponent =  (((number[0] & 0x0F)     ) * 1.0);
+  exponent += (((number[0] & 0xF0) >> 4) * 10.0);
+  exponent += (((number[1] & 0xF0) >> 4) * 100.0);
+
+  //  Serial.printf("10's com exp is %5d ", exponent);      //  Diagnostic
 
   if(exponent > 499)
   {
     exponent = exponent - 1000;
   }
+
+  //
+  //  Limit the exponent, even though this makes the conversion less accurate
+  //
+
+  if(exponent > 307) exponent = 307;
+  if(exponent < -307) exponent = -307;
+
+  //  Serial.printf("limit exp is %5d ", exponent);      //  Diagnostic
+
+  //
+  //  Now deal with the mantissa, which is Sign Magnitude, not 10's complement
+  //  Not the prettiest solution, but easy to understand. Convert the BCD nibbles
+  //  to text and then let sscanf() sort things out
+  //
 
   negative_mantisa = ((number[1] & 0x0F) == 9);
   numtext[ 0] = negative_mantisa ? '-' : ' ';
@@ -283,6 +332,7 @@ double cvt_R12_real_to_double(uint8_t number[])
   numtext[13] = ((number[2] & 0x0F)     ) + '0';
 
   snprintf(&numtext[14], 6, "E%04d", exponent);    //  fills 14..19, including a trailing 0x00
+  //  Serial.printf("numtext is [%s] ", numtext);      //  Diagnostic
   sscanf(numtext , "%lf", &result);
   return result;
 }
@@ -291,7 +341,7 @@ double cvt_R12_real_to_double(uint8_t number[])
 //  Process a Tagged Integer from the R12 stack -99999 to 99999 in 10's complement format
 //
 
-uint32_t cvt_R12_int_to_uint32(uint8_t number[])
+int32_t cvt_R12_int_to_int32(uint8_t number[])
 {
   uint32_t    result;
 
@@ -312,9 +362,11 @@ uint32_t cvt_R12_int_to_uint32(uint8_t number[])
 }
 
 //
-//  This function converts a 32 bit integer to a HP number, and correctly deals with Tagged Integer results or Reals
+//  This function converts a 32 bit integer to a HP Tagged Integer. Tested and then disabled,
+//  because I don't think we need it, given the following function. Although, for numbers in
+//  the Tagged Integer range, this would be faster, probably
 //
-//  Dest points to an 8 byte area that can hold an 8 byte real or a tagged integer
+//  Dest points to an 8 byte area that can hold a tagged integer
 //
 //  Examples of how HP85 numbers are encoded
 //                  0                           1                          -1
@@ -332,7 +384,7 @@ uint32_t cvt_R12_int_to_uint32(uint8_t number[])
 //               -999                        -9999                    -99999
 //    00 00 00 00 FF 01 90 99     00 00 00 00 FF 01 00 99     00 00 00 00 FF 01 00 90
 //    Sign Digit           ^                           ^                           ^
-
+//
 //  Format "[%06d]" on ARM
 //          0         1        -1
 //    [000000]  [000001]  [-00001]
@@ -349,32 +401,116 @@ uint32_t cvt_R12_int_to_uint32(uint8_t number[])
 //       -999     -9999    -99999
 //    [-00999]  [-09999]  [-99999]
 //
-//  This conversion is going to be such a pain
+//  Tested with all the above values, and they all converted correctly
+//
+//void cvt_int32_to_HP85_tagged_integer(uint8_t * dest, int val)
+//{
+//  char  val_chars[20];
+//  bool  negative;
+//
+//  if((val<100000) && (val > -100000))
+//  {
+//    //
+//    //  The result can be formatted as a tagged integer
+//    //
+//    //  Handle negative numbers in 10's complement format
+//    //
+//    negative = val < 0;
+//    if(negative)
+//    {
+//      val = 100000 + val;
+//    }
+//    dest += 4;                            //  We know we are doing a tagged integer, so skip the first 4 bytes
+//    *dest++ = 0377;                       //  Tag it as an integer
+//    sprintf(val_chars, "%06d", val);      //  Convert to decimal
+//    *dest++ = (val_chars[5] & 0x0F) | ((val_chars[4] & 0x0F) << 4);
+//    *dest++ = (val_chars[3] & 0x0F) | ((val_chars[2] & 0x0F) << 4);
+//    *dest++ = (val_chars[1] & 0x0F) | (negative? 0x90 : 0x00);
+//    return;
+//  }
+//}
+
+
+
+//
+//  This function converts a 64 bit IEEE Double to a HP Real.  While some results could be represented
+//  with a Tagged Integer, I don't think that it has to do that. Confirmed, no problem returning integers
+//  between -99999 and +99999 as 8 byte Reals (non tagged), HP85 is fine with the results.
+//
+//  Dest points to an 8 byte area that can hold an 8 byte real
+//
+//  Examples of how HP85 numbers are encoded
+//              1.10                     1.23456789012             -1.23456789012
+//    00 00 00 00 FF 00 00 00     00 00 00 00 FF 01 00 00     00 00 00 00 FF 99 99 99     
+//
+//  The conversion was helped by a code example here:
+//    https://stackoverflow.com/questions/31331723/how-to-control-the-number-of-exponent-digits-after-e-in-c-printf-e
+//
+//  Tested with all the above values, and they all converted correctly
 //
 
-void cvt_int32_to_HP85_number(uint8_t * dest, int val)
-{
-  char  val_chars[20];
-  bool  negative;
+//                      1 . yyyyyyyyyyy e 0 EEE \0
+//                    - 1 . xxxxxxxxxxx e - EEE \0
+#define ExpectedSize (1+1+1       +11  +1+1+ 3 + 1)
 
-  if((val<100000) && (val > -100000))
+void cvt_IEEE_double_to_HP85_number(uint8_t * dest, double val)
+{
+  bool  negative;
+  char  buf[ExpectedSize + 10];
+
+  if((negative = val < 0))
   {
-    //
-    //  The result can be formatted as a tagged integer
-    //
-    //  Handle negative numbers in 10's complement format
-    //
-    negative = val < 0;
-    if(negative)
-    {
-      val = 100000 + val;
-    }
-    dest += 4;                            //  We know we are doing a tagged integer, so skip the first 4 bytes
-    *dest++ = 0377;                       //  Tag it as an integer
-    sprintf(val_chars, "%06d", val);      //  Convert to decimal
-    *dest++ = (val_chars[5] & 0x0F) | ((val_chars[4] & 0x0F) << 4);
-    *dest++ = (val_chars[3] & 0x0F) | ((val_chars[2] & 0x0F) << 4);
-    *dest++ = (val_chars[1] & 0x0F) | (negative? 0x90 : 0x00);
-    return;
+    val = -val;       //  We only want to format positive numbers
   }
+
+  snprintf(buf, sizeof buf, "%.11e", val);
+  char *e = strchr(buf, 'e');                           // lucky 'e' not in "Infinity" nor "NaN"
+  if (e)
+  {
+    e++;
+    int expo = atoi(e);
+    //
+    //    But nothing is ever easy. The HP85 DECIMAL Exponent is in 10's complement format
+    //
+    if(expo < 0)
+    {
+      expo = 1000 + expo;
+    }
+    snprintf(e, sizeof buf - (e - buf), "%04d", expo);
+  }
+
+//
+//  The number is now formatted in buf. See page 3-11 of the HP85 Assembler manual for the Nibble codes
+//                      Nibble
+//    buf[0 ]   1         M0
+//    buf[1 ]   .
+//    buf[2 ]   2         M1
+//    buf[3 ]   3         M2
+//    buf[4 ]   4         M3
+//    buf[5 ]   5         M4
+//    buf[6 ]   6         M5
+//    buf[7 ]   7         M6
+//    buf[8 ]   8         M7
+//    buf[9 ]   9         M8
+//    buf[10]   10        M9
+//    buf[11]   11        M10
+//    buf[12]   12        M11
+//    buf[13]   E
+//    buf[14]   - or 0    MS  Mantissa Sign due to above code, always 0 in buf[14]
+//    buf[15]   1         E0  most sig digit of exponent, 10's complement format
+//    buf[16]   2         E1
+//    buf[17]   3         E2  least sig digit of exponent
+//    buf[18]
+//    buf[19]
+//    buf[20]
+//
+  *dest++ = ((buf[16] & 0x0F) << 4) | (buf[17]        & 0x0F);     //  E1  E2
+  *dest++ = ((buf[15] & 0x0F) << 4) | (negative? 0x09 : 0x00);     //  E0  MS
+  *dest++ = ((buf[11] & 0x0F) << 4) | (buf[12]        & 0x0F);     //  M10 M11
+  *dest++ = ((buf[9]  & 0x0F) << 4) | (buf[10]        & 0x0F);     //  M8  M9
+  *dest++ = ((buf[7]  & 0x0F) << 4) | (buf[8]         & 0x0F);     //  M6  M7
+  *dest++ = ((buf[5]  & 0x0F) << 4) | (buf[6]         & 0x0F);     //  M4  M5
+  *dest++ = ((buf[3]  & 0x0F) << 4) | (buf[4]         & 0x0F);     //  M2  M3
+  *dest++ = ((buf[0]  & 0x0F) << 4) | (buf[2]         & 0x0F);     //  M0  M1
 }
+
