@@ -152,7 +152,7 @@ inline void onPhi_1_Rise(void)                  //  This function is running wit
       }
     }
     Logic_Analyzer_Channel_A[Logic_Analyzer_Channel_A_index++] = Logic_Analyzer_sample;
-    Logic_Analyzer_Channel_A_index &= LOGIC_ANALYZER_INDEX_MASK;          //  Modulo addressing of sample buffer. Requires buffer length to be a power of two
+    Logic_Analyzer_Channel_A_index &= Logic_Analyzer_Current_Index_Mask;          //  Modulo addressing of sample buffer. Requires buffer length to be a power of two
     Logic_Analyzer_Valid_Samples++;   //  This could theoretically over flow if we didn't see a trigger in 7000 seconds (1.9 hours). Saturating is not worth the overhead
     if(Logic_Analyzer_Triggered)
     {
@@ -222,10 +222,11 @@ inline void onPhi_2_Rise(void)                                  //  This functio
   {
     if (interruptReq == true)
     {
-    readData = interruptVector;      
-    interruptReq = false; //clear request
-    RELEASE_INT;
-    HP85_Read_Us = true;
+      TOGGLE_LED;
+      readData = interruptVector;      
+      interruptReq = false; //clear request
+      RELEASE_INT;
+      HP85_Read_Us = true;
     }
   }
 

@@ -292,7 +292,7 @@ void writeStatus(uint8_t val)
 void requestInterrupt(uint8_t reason)
     {
     intReason = reason;
-    interruptVector = 0x10; //int vector for the 1MB5
+    interruptVector = 0x10;   //  Interrupt vector for the 1MB5
     ASSERT_INT;
     interruptReq = true;
     }

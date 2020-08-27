@@ -135,7 +135,8 @@ void Serial_Command_Poll(void);
 void str_tolower(char *p);
 void hexdump(uint8_t *start_address, uint32_t count, bool show_addr, bool final_nl);
 
-void Setup_Logic_analyzer(void);
+void Setup_Logic_Analyzer(void);
+void Logic_analyzer_go(void);
 
 void Simple_Graphics_Test(void);
 

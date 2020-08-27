@@ -187,6 +187,9 @@ EXTERN  uint32_t  Logic_Analyzer_Samples_Till_Done;
 EXTERN  uint32_t  Logic_Analyzer_Index_of_Trigger;
 EXTERN  uint32_t  Logic_Analyzer_current_bus_cycle_state_LA;
 EXTERN  uint32_t  Logic_Analyzer_Valid_Samples;
+EXTERN  uint32_t  Logic_Analyzer_Current_Buffer_Length;
+EXTERN  uint32_t  Logic_Analyzer_Current_Index_Mask;
+
 
 EXTERN  volatile uint32_t  Logic_Analyzer_sample;
 

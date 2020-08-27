@@ -135,6 +135,7 @@ void MEM_Test_1(void);
 void MEM_Test_2(void);
 void MEM_Test_3(void);
 void Setup_Logic_analyzer(void);
+void Logic_analyzer_go(void);
 void Simple_Graphics_Test(void);
 void show_logfile(void);
 void clean_logfile(void);
@@ -183,7 +184,8 @@ struct S_Command_Entry Command_Table[] =
   {"mem_1",            MEM_Test_1},
   {"mem_2",            MEM_Test_2},
   {"mem_3",            MEM_Test_3},
-  {"la_start",         Setup_Logic_analyzer},
+  {"la_setup",         Setup_Logic_Analyzer},
+  {"la_go",            Logic_analyzer_go},
   {"graphics_test",    Simple_Graphics_Test},
   {"show_logfile",     show_logfile},
   {"clean_logfile",    clean_logfile},
@@ -740,7 +742,30 @@ void MEM_Test_3(void)
 
 void proc_addr(void)
 {
-  Serial.printf("ROM: %03o ADDR: %04X\n", rselec, addReg);
+//  int i = 16;
+//  
+//  Serial.printf("Random sampling, sequential in time but not necessarily adjacent cycles\n");
+//  
+//  while(i--)
+//  {
+//    Serial.printf("ROM: %03o(8) ADDR: %04X/%06o\n", rselec, addReg, addReg);
+//  }
+
+  Logic_Analyzer_State = ANALYZER_IDLE;
+  Logic_Analyzer_Channel_A_index = 0;
+  Logic_Analyzer_Valid_Samples   = 0;
+  Logic_Analyzer_Trigger_Value   = 0;   //  trigger on anything
+  Logic_Analyzer_Trigger_Mask    = 0;   //  trigger on anything
+  Logic_Analyzer_Index_of_Trigger = 1;  //  Just give it a safe value
+  Logic_Analyzer_Triggered = false;
+
+  Logic_Analyzer_Current_Buffer_Length = 32;
+  Logic_Analyzer_Current_Index_Mask  = 0x1F;
+  Logic_Analyzer_Pre_Trigger_Samples = 16;
+  Logic_Analyzer_Samples_Till_Done   = Logic_Analyzer_Current_Buffer_Length - Logic_Analyzer_Pre_Trigger_Samples;
+
+  Logic_analyzer_go();
+
 }
 
 void proc_auxint(void)
@@ -901,39 +926,179 @@ void ulisp(void)
 //  The Logic Analyzer does not currently trace DMA activity
 //
 //  The code will probably fail if there isn't at least 1 pre or post trigger sample,
-//  so dont set Logic_Analyzer_Pre_Trigger_Samples to 0 or LOGIC_ANALYZER_BUFFER_SIZE
+//  so don't set Logic_Analyzer_Pre_Trigger_Samples to 0 or Logic_Analyzer_Current_Buffer_Length
 //
 //  Since this setup runs in the background, and acquisition runs in the onPhi_1_Rise() ISR
 //  we need to not activate the Logic Analyzer until everything is ready to go.
 //
-void Setup_Logic_analyzer(void)
+void Setup_Logic_Analyzer(void)
 {
-  uint32_t      i, j, temp;
-  int16_t       sample_number_relative_to_trigger;
+  unsigned int  address;
+  unsigned int  data;
 
   Logic_Analyzer_State = ANALYZER_IDLE;
   Logic_Analyzer_Channel_A_index = 0;
   Logic_Analyzer_Valid_Samples   = 0;
-  Logic_Analyzer_Trigger_Value = 0105 << 8;       //  An Octal address, moved to the appropriate bit positions
-  Logic_Analyzer_Trigger_Mask  = 0x00FFFF00U;     //  We are only looking for an address match, control signals and data are not tested
-  Logic_Analyzer_Pre_Trigger_Samples = LOGIC_ANALYZER_BUFFER_SIZE/2;      //  Don't trigger until we have at least this number of samples.
-  Logic_Analyzer_Samples_Till_Done   = LOGIC_ANALYZER_BUFFER_SIZE - Logic_Analyzer_Pre_Trigger_Samples;
+  Logic_Analyzer_Trigger_Value   = 0;
+  Logic_Analyzer_Trigger_Mask    = 0;
+  //
+  //  Setup Trigger Pattern
+  //
+redo_bus:
+  Serial.printf("Logic Analyzer Setup\nFirst enter the match pattern, then the mask (set bits to enable match)\n");
+  Serial.printf("Order is control signals (3), Address (16), data (8)\nBus Cycle /WR /RD /LMA pattern as 0/1, 3 bits:");
+
+  while (!serial_string_available) { get_serial_string_poll(); }
+
+  if(strlen(serial_string) != 3)
+  { Serial.printf("Please enter a 3 digit number, only use 0 and 1\n\n"); serial_string_used(); goto redo_bus; }
+
+  if(serial_string[0] == '1') Logic_Analyzer_Trigger_Value |= BIT_MASK_WR;
+  else if (serial_string[0] == '0') {}
+  else { Serial.printf("Only 0 or 1\n\n"); serial_string_used(); goto redo_bus; }
+
+  if(serial_string[1] == '1') Logic_Analyzer_Trigger_Value |= BIT_MASK_RD;
+  else if (serial_string[1] == '0') {}
+  else { Serial.printf("Only 0 or 1\n\n"); serial_string_used(); goto redo_bus; }
+
+  if(serial_string[2] == '1') Logic_Analyzer_Trigger_Value |= BIT_MASK_LMA;
+  else if (serial_string[2] == '0') {}
+  else { Serial.printf("Only 0 or 1\n\n"); serial_string_used(); goto redo_bus; }
+
+  serial_string_used();
+
+redo_busmask:
+  Serial.printf("Bus Cycle /WR /RD /LMA mask as 0/1, 3 bits:");
+
+  while (!serial_string_available) { get_serial_string_poll(); }
+
+  if(strlen(serial_string) != 3)
+  { Serial.printf("Please enter a 3 digit number, only use 0 and 1\n\n"); serial_string_used(); goto redo_busmask; }
+
+  if(serial_string[0] == '1') Logic_Analyzer_Trigger_Mask |= BIT_MASK_WR;
+  else if (serial_string[0] == '0') {}
+  else { Serial.printf("Only 0 or 1\n\n"); serial_string_used(); goto redo_busmask; }
+
+  if(serial_string[1] == '1') Logic_Analyzer_Trigger_Mask |= BIT_MASK_RD;
+  else if (serial_string[1] == '0') {}
+  else { Serial.printf("Only 0 or 1\n\n"); serial_string_used(); goto redo_busmask; }
+
+  if(serial_string[2] == '1') Logic_Analyzer_Trigger_Mask |= BIT_MASK_LMA;
+  else if (serial_string[2] == '0') {}
+  else { Serial.printf("Only 0 or 1\n\n"); serial_string_used(); goto redo_busmask; }
+
+  serial_string_used();
+
+redo_address_pattern:
+  Serial.printf("Address pattern is 6 octal digits:");
+  while (!serial_string_available) { get_serial_string_poll(); }
+  if(strlen(serial_string) != 6)
+  { Serial.printf("Please enter a 6 octal digits, only use 0 through 7\n\n"); serial_string_used(); goto redo_address_pattern; }
+  sscanf(serial_string, "%o", &address);
+  address &= 0x0000FFFF;
+  Logic_Analyzer_Trigger_Value |= ((int)address << 8);
+  serial_string_used();
+
+redo_address_mask:
+  Serial.printf("Address mask is 6 octal digits:");
+  while (!serial_string_available) { get_serial_string_poll(); }
+  if(strlen(serial_string) != 6)
+  { Serial.printf("Please enter a 6 octal digits, only use 0 through 7\n\n"); serial_string_used(); goto redo_address_mask; }
+  sscanf(serial_string, "%o", &address);
+  address &= 0x0000FFFF;
+  Logic_Analyzer_Trigger_Mask |= ((int)address << 8);
+  serial_string_used();
+
+redo_data_pattern:
+  Serial.printf("Data pattern is 3 octal digits:");
+  while (!serial_string_available) { get_serial_string_poll(); }
+  if(strlen(serial_string) != 3)
+  { Serial.printf("Please enter a 3 octal digits, only use 0 through 7\n\n"); serial_string_used(); goto redo_data_pattern; }
+  sscanf(serial_string, "%o", &data);
+  data &= 0x000000FF;
+  Logic_Analyzer_Trigger_Value |= ((unsigned int)data & 0x000000FF);
+  serial_string_used();
+
+redo_data_mask:
+  Serial.printf("Data mask is 3 octal digits:");
+  while (!serial_string_available) { get_serial_string_poll(); }
+  if(strlen(serial_string) != 3)
+  { Serial.printf("Please enter a 3 octal digits, only use 0 through 7\n\n"); serial_string_used(); goto redo_data_mask; }
+  sscanf(serial_string, "%o", &data);
+  data &= 0x000000FF;
+  Logic_Analyzer_Trigger_Mask |= ((unsigned int)data & 0x000000FF);
+  serial_string_used();
+
+  Serial.printf("Here is the Pattern %1o %06o %03o and the Mask %1o %06o %03o\n",
+                (Logic_Analyzer_Trigger_Value >> 24) & 0x00000007,
+                (Logic_Analyzer_Trigger_Value >>  8) & 0x0000FFFF,
+                (Logic_Analyzer_Trigger_Value >>  0) & 0x000000FF,
+                (Logic_Analyzer_Trigger_Mask >>  24) & 0x00000007,
+                (Logic_Analyzer_Trigger_Mask >>   8) & 0x0000FFFF,
+                (Logic_Analyzer_Trigger_Mask >>   0) & 0x000000FF);
+
+  Logic_Analyzer_Current_Buffer_Length = LOGIC_ANALYZER_BUFFER_SIZE;
+  Logic_Analyzer_Current_Index_Mask    = LOGIC_ANALYZER_INDEX_MASK;
+
+  Serial.printf("Pretrigger samples (0 to %d):", Logic_Analyzer_Current_Buffer_Length-4);
+  while (!serial_string_available) { get_serial_string_poll(); }
+  sscanf(serial_string, "%d", (int *)&Logic_Analyzer_Pre_Trigger_Samples);
+  if(Logic_Analyzer_Pre_Trigger_Samples > Logic_Analyzer_Current_Buffer_Length-4) Logic_Analyzer_Pre_Trigger_Samples = Logic_Analyzer_Current_Buffer_Length-4;
+  serial_string_used();
+
   Logic_Analyzer_Index_of_Trigger = 100;          //  Just give it a safe value
   Logic_Analyzer_Triggered = false;
+  Logic_Analyzer_Samples_Till_Done     = Logic_Analyzer_Current_Buffer_Length - Logic_Analyzer_Pre_Trigger_Samples;
+
+
+  Serial.printf("Logic Analyzer Setup complete. Type la_go to start\n");
+}
+
+void Logic_analyzer_go(void)
+{
+  uint32_t      i, j, temp;
+  int16_t       sample_number_relative_to_trigger;
+
   Logic_Analyzer_State = ANALYZER_ACQUIRING;
 
-  while(Logic_Analyzer_State == ANALYZER_ACQUIRING)
+  delay(10);  //  just in case this a quick trigger, give it a chance before announcing a wait
+
+  while(1)
   {
-    Serial.printf("LA Index %04x\n", Logic_Analyzer_Channel_A_index);
-    delayMicroseconds(100);
+    if(Logic_Analyzer_State == ANALYZER_ACQUISITION_DONE)
+    {
+      break;
+    }
+    i = 1000;   //  Don't report too often. Once per second
+    while(i--)
+    {
+      delay(1);
+      if(Logic_Analyzer_State == ANALYZER_ACQUISITION_DONE)
+      {
+        break;
+      }
+      if(Serial.available())
+      {   //  Type any character to abort
+        Logic_Analyzer_State = ANALYZER_IDLE;
+        Serial.printf("LA Abort\n");
+        return;
+      }
+      if(i == 1)
+      {
+        Serial.printf("waiting... LAVS:%4d LAPTS:%4d LAT:%1d LAS:%08X LAM:%08X LATV:%08X\n",
+                    Logic_Analyzer_Valid_Samples, Logic_Analyzer_Pre_Trigger_Samples, Logic_Analyzer_Triggered,
+                    Logic_Analyzer_sample, Logic_Analyzer_Trigger_Mask, Logic_Analyzer_Trigger_Value);
+      }
+    }
   }
 
-  Serial.printf("Dump 64 samples either side of trigger\n\n");
+  Serial.printf("Logic Analyzer results\n\n");
   Serial.printf("Sample  Address      Data    Cycle\n");
-  sample_number_relative_to_trigger = -64;
-  for(i = Logic_Analyzer_Index_of_Trigger - 64 ; i < Logic_Analyzer_Index_of_Trigger + 64; i++)
+
+  sample_number_relative_to_trigger = -Logic_Analyzer_Pre_Trigger_Samples;
+  for(i = Logic_Analyzer_Index_of_Trigger - Logic_Analyzer_Pre_Trigger_Samples ; i < Logic_Analyzer_Index_of_Trigger + Logic_Analyzer_Current_Buffer_Length - Logic_Analyzer_Pre_Trigger_Samples; i++)
   {
-    j = i & LOGIC_ANALYZER_INDEX_MASK;
+    j = i & Logic_Analyzer_Current_Index_Mask;
     temp = Logic_Analyzer_Channel_A[j];
     if((temp & (BIT_MASK_LMA | BIT_MASK_RD | BIT_MASK_WR)) == (BIT_MASK_LMA | BIT_MASK_RD | BIT_MASK_WR))
     { //  All 3 control lines are high (not asserted, so data bus is junque)
@@ -958,6 +1123,7 @@ void Setup_Logic_analyzer(void)
     {
       Serial.printf("\n");
     }
+    Serial.flush();
   }
 }
 

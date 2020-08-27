@@ -280,7 +280,7 @@ double cvt_HP85_real_to_IEEE_double(uint8_t number[])
 
   //
   //  Handle a 12 digit Real, with an exponent between -499 and +499
-  //  IEEE Double only supports 10E308 and 10E-308 , so we cant represnt all numbers.
+  //  IEEE Double only supports 10E308 and 10E-308 , so we can't represent all numbers.
   //  Do our best
   //
   exponent =  (((number[0] & 0x0F)     ) * 1.0);
@@ -430,18 +430,12 @@ int32_t cvt_R12_int_to_int32(uint8_t number[])
 //  }
 //}
 
-
-
 //
 //  This function converts a 64 bit IEEE Double to a HP Real.  While some results could be represented
 //  with a Tagged Integer, I don't think that it has to do that. Confirmed, no problem returning integers
 //  between -99999 and +99999 as 8 byte Reals (non tagged), HP85 is fine with the results.
 //
 //  Dest points to an 8 byte area that can hold an 8 byte real
-//
-//  Examples of how HP85 numbers are encoded
-//              1.10                     1.23456789012             -1.23456789012
-//    00 00 00 00 FF 00 00 00     00 00 00 00 FF 01 00 00     00 00 00 00 FF 99 99 99     
 //
 //  The conversion was helped by a code example here:
 //    https://stackoverflow.com/questions/31331723/how-to-control-the-number-of-exponent-digits-after-e-in-c-printf-e
