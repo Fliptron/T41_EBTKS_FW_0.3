@@ -604,30 +604,6 @@
 #define RELEASE_WR                         (GPIO_DR_SET_WR   = BIT_MASK_WR)
 
 
-
-//
-//  Bus Cycle Type from Patent US4424563 , Fig 13
-//
-//  This code depends on the following being true, found in above
-//    (all 3 control signals are consecutive bits in the same GPIO register, in these bit positions)
-//      #define BIT_POSITION_WR           (26)      MSB
-//      #define BIT_POSITION_RD           (25)
-//      #define BIT_POSITION_LMA          (24)      LSB
-//
-//  Re-arange the columns of the Fig 13 in the patent to get these values without any bit shuffling
-//    /WR   /RD   /LMA      Note all signals are active low
-//
-enum bus_cycle_type{
-        BUS_INTACK    = 0,
-        BUS_DMA_GRANT = 1,
-        BUS_ADDR_WR   = 2,    //  Should never happen
-        BUS_WR        = 3,
-        BUS_ADDR_RD   = 4,    //  While reading from somewhere, also load value into address register
-        BUS_RD        = 5,
-        BUS_ADDR      = 6,
-        BUS_NOP       = 7
-      };
-
 //    Simple Logic Analyzer
 //
 //  This implements a simple Logic Analyzer that traces bus transactions and some program state

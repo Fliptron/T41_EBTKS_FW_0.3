@@ -756,8 +756,9 @@ void proc_addr(void)
   Logic_Analyzer_Valid_Samples   = 0;
   Logic_Analyzer_Trigger_Value   = 0;   //  trigger on anything
   Logic_Analyzer_Trigger_Mask    = 0;   //  trigger on anything
-  Logic_Analyzer_Index_of_Trigger = 1;  //  Just give it a safe value
-  Logic_Analyzer_Triggered = false;
+  Logic_Analyzer_Index_of_Trigger= 1;  //  Just give it a safe value
+  Logic_Analyzer_Event_Count     = 1;
+  Logic_Analyzer_Triggered       = false;
 
   Logic_Analyzer_Current_Buffer_Length = 32;
   Logic_Analyzer_Current_Index_Mask  = 0x1F;
@@ -941,12 +942,13 @@ void Setup_Logic_Analyzer(void)
   Logic_Analyzer_Valid_Samples   = 0;
   Logic_Analyzer_Trigger_Value   = 0;
   Logic_Analyzer_Trigger_Mask    = 0;
+  Logic_Analyzer_Event_Count     = 1;
   //
   //  Setup Trigger Pattern
   //
 redo_bus:
   Serial.printf("Logic Analyzer Setup\nFirst enter the match pattern, then the mask (set bits to enable match)\n");
-  Serial.printf("Order is control signals (3), Address (16), data (8)\nBus Cycle /WR /RD /LMA pattern as 0/1, 3 bits:");
+  Serial.printf("Order is control signals (3), Address (16), data (8)\nBus Cycle /WR /RD /LMA pattern as 0/1, 3 bits (0 is asserted):");
 
   while (!serial_string_available) { get_serial_string_poll(); }
 
@@ -968,7 +970,7 @@ redo_bus:
   serial_string_used();
 
 redo_busmask:
-  Serial.printf("Bus Cycle /WR /RD /LMA mask as 0/1, 3 bits:");
+  Serial.printf("Bus Cycle /WR /RD /LMA Mask as 0/1, 3 bits(1 is enabled):");
 
   while (!serial_string_available) { get_serial_string_poll(); }
 
@@ -1003,7 +1005,7 @@ redo_address_mask:
   Serial.printf("Address mask is 6 octal digits:");
   while (!serial_string_available) { get_serial_string_poll(); }
   if(strlen(serial_string) != 6)
-  { Serial.printf("Please enter a 6 octal digits, only use 0 through 7\n\n"); serial_string_used(); goto redo_address_mask; }
+  { Serial.printf("Please enter a 6 octal digits, only use 0 through 7 (1 bits enable match)\n\n"); serial_string_used(); goto redo_address_mask; }
   sscanf(serial_string, "%o", &address);
   address &= 0x0000FFFF;
   Logic_Analyzer_Trigger_Mask |= ((int)address << 8);
@@ -1023,7 +1025,7 @@ redo_data_mask:
   Serial.printf("Data mask is 3 octal digits:");
   while (!serial_string_available) { get_serial_string_poll(); }
   if(strlen(serial_string) != 3)
-  { Serial.printf("Please enter a 3 octal digits, only use 0 through 7\n\n"); serial_string_used(); goto redo_data_mask; }
+  { Serial.printf("Please enter a 3 octal digits, only use 0 through 7 (1 bits enable match)\n\n"); serial_string_used(); goto redo_data_mask; }
   sscanf(serial_string, "%o", &data);
   data &= 0x000000FF;
   Logic_Analyzer_Trigger_Mask |= ((unsigned int)data & 0x000000FF);
@@ -1044,6 +1046,11 @@ redo_data_mask:
   while (!serial_string_available) { get_serial_string_poll(); }
   sscanf(serial_string, "%d", (int *)&Logic_Analyzer_Pre_Trigger_Samples);
   if(Logic_Analyzer_Pre_Trigger_Samples > Logic_Analyzer_Current_Buffer_Length-4) Logic_Analyzer_Pre_Trigger_Samples = Logic_Analyzer_Current_Buffer_Length-4;
+  serial_string_used();
+
+  Serial.printf("Event Count 1..N ");
+  while (!serial_string_available) { get_serial_string_poll(); }
+  sscanf(serial_string, "%d", (int *)&Logic_Analyzer_Event_Count);
   serial_string_used();
 
   Logic_Analyzer_Index_of_Trigger = 100;          //  Just give it a safe value
@@ -1085,9 +1092,9 @@ void Logic_analyzer_go(void)
       }
       if(i == 1)
       {
-        Serial.printf("waiting... LAVS:%4d LAPTS:%4d LAT:%1d LAS:%08X LAM:%08X LATV:%08X\n",
+        Serial.printf("waiting... LAVS:%4d LAPTS:%4d LAT:%1d LAS:%08X LAM:%08X LATV:%08X LAEC:%d\n",
                     Logic_Analyzer_Valid_Samples, Logic_Analyzer_Pre_Trigger_Samples, Logic_Analyzer_Triggered,
-                    Logic_Analyzer_sample, Logic_Analyzer_Trigger_Mask, Logic_Analyzer_Trigger_Value);
+                    Logic_Analyzer_sample, Logic_Analyzer_Trigger_Mask, Logic_Analyzer_Trigger_Value, Logic_Analyzer_Event_Count);
       }
     }
   }

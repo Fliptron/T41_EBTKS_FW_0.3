@@ -124,8 +124,8 @@ EXTERN  uint8_t *currRom; //pointer to the currently selected rom data. NULL if 
 
 EXTERN  bool haltReq; //set true to request the HP85 to halt/DMA request
 
-EXTERN  enum bus_cycle_type current_bus_cycle_state;      //  Detected on Rising edge Phi 2
-EXTERN  enum bus_cycle_type previous_bus_cycle_state;     //  Used to manage the double cycle needed for address low and high bytes
+//////EXTERN  enum bus_cycle_type current_bus_cycle_state;      //  Detected on Rising edge Phi 2
+//////EXTERN  enum bus_cycle_type previous_bus_cycle_state;     //  Used to manage the double cycle needed for address low and high bytes
 
 EXTERN  bool  schedule_address_increment;
 EXTERN  bool  schedule_address_load;                      //  Address register is loaded on the second /LMA of a pair
@@ -183,6 +183,7 @@ EXTERN  uint32_t  Logic_Analyzer_Trigger_Mask;
 EXTERN  uint32_t  Logic_Analyzer_Trigger_Value;
 EXTERN  bool      Logic_Analyzer_Triggered;
 EXTERN  uint32_t  Logic_Analyzer_Pre_Trigger_Samples;
+EXTERN  int32_t   Logic_Analyzer_Event_Count;
 EXTERN  uint32_t  Logic_Analyzer_Samples_Till_Done;
 EXTERN  uint32_t  Logic_Analyzer_Index_of_Trigger;
 EXTERN  uint32_t  Logic_Analyzer_current_bus_cycle_state_LA;

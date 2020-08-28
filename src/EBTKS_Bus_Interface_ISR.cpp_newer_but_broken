@@ -182,87 +182,30 @@ inline void onPhi_1_Rise(void)                  //  This function is running wit
 //
 //  Total re-write 7/22/2020
 //
-//  08/27/2020 Total restore of old code, but with nicer variable names because
-//  the old code apparently works better.
-//
-//
-//  Bus Cycle Type from Patent US4424563 , Fig 13
-//
-//  This code depends on the following being true, found in above
-//    (all 3 control signals are consecutive bits in the same GPIO register, in these bit positions)
-//      #define BIT_POSITION_WR           (26)      MSB
-//      #define BIT_POSITION_RD           (25)
-//      #define BIT_POSITION_LMA          (24)      LSB
-//
-//  Re-arange the columns of the Fig 13 in the patent to get these values without any bit shuffling
-//    /WR   /RD   /LMA      Note all signals are active low in hardware.
-//
 
+//static uint8_t  just_once = 1;
 
 inline void onPhi_2_Rise(void)                                  //  This function is running within an ISR, keep it short and fast.
 {
-  bool       lma;
-  bool       rd;
-  bool       wr;
-  uint32_t   dataBus;
-  uint32_t   bus_cycle_info;                              //  Bits 26 down to 24 will be /WR , /RD , /24 in that order
+  uint32_t dataBus;
 
-//
-//  This is Russell's code with some minor edits.
-//
+  previous_bus_cycle_state   = current_bus_cycle_state;         //  Save what the prior bus cycle was. Used in handling high byte/low byte  of dual /LMA address transfers
 
-  bus_cycle_info = GPIO_PAD_STATUS_REG_LMA;               //  All 3 control bits are in the same GPIO register
-  lma = !(bus_cycle_info & BIT_MASK_LMA);                 //  Invert the bits so they are active high
-  rd  = !(bus_cycle_info & BIT_MASK_RD );
-  wr  = !(bus_cycle_info & BIT_MASK_WR );
+  Logic_Analyzer_current_bus_cycle_state_LA = GPIO_PAD_STATUS_REG_LMA &         //  Yes, this is supposed to be a single &
+                               (BIT_MASK_WR | BIT_MASK_RD | BIT_MASK_LMA);      //  Require bus cycle state to be in bits 24, 25, and 26 of GPIO register
 
-  //  Resolve control logic states
+  current_bus_cycle_state    = (enum bus_cycle_type)(Logic_Analyzer_current_bus_cycle_state_LA >> 24);            //  Make it ready to be used in enum comaprisons
 
-  schedule_read  = rd && !wr;
-  schedule_write = wr && !rd;
-  schedule_address_increment = ((addReg >> 8) != 0xff) &&
-                                !(!schedule_address_load & delayed_lma) &&
-                                (schedule_read | schedule_write);         //  Only increment addr on a non i/o address
-  schedule_address_load = !schedule_address_load && delayed_lma;          //  Load address reg flag
-  delayed_lma = lma;                                                      //  Delayed lma
-  DMA_Acknowledge = wr && rd && !lma;                                     //  Decode DMA acknowlege state
-  Interrupt_Acknowledge = wr && rd && lma;                                //  Decode interrupt acknowlege state
+  schedule_read              = ((current_bus_cycle_state == BUS_RD) || (current_bus_cycle_state == BUS_ADDR_RD));
+  schedule_write             = (current_bus_cycle_state == BUS_WR);
+  schedule_address_increment = ((addReg >> 8) != 0x00FFU) &&                    //  If not I/O space
+                               !(!schedule_address_load & delayed_lma) &&       //    and
+                               (schedule_read ||  schedule_write);              //  Any bus read or write
+  schedule_address_load      = !schedule_address_load && delayed_lma;
+  delayed_lma                = (current_bus_cycle_state == BUS_ADDR) || (current_bus_cycle_state == BUS_ADDR_RD) || (current_bus_cycle_state == BUS_INTACK);
+  DMA_Acknowledge            = (current_bus_cycle_state == BUS_DMA_GRANT);
+  Interrupt_Acknowledge      = (current_bus_cycle_state == BUS_INTACK);
 
-  Logic_Analyzer_current_bus_cycle_state_LA = bus_cycle_info  &           //  Yes, this is supposed to be a single &
-                                              (BIT_MASK_WR | BIT_MASK_RD | BIT_MASK_LMA);      //  Require bus cycle state to be in bits 24, 25, and 26 of GPIO register
-
-//
-//  This is Philip's much nicer version of above that uses enums, and doesn't work on rare occasions.
-//
-//////enum bus_cycle_type{
-//////        BUS_INTACK    = 0,
-//////        BUS_DMA_GRANT = 1,
-//////        BUS_ADDR_WR   = 2,    //  Should never happen
-//////        BUS_WR        = 3,
-//////        BUS_ADDR_RD   = 4,    //  While reading from somewhere, also load value into address register
-//////        BUS_RD        = 5,
-//////        BUS_ADDR      = 6,
-//////        BUS_NOP       = 7
-//////      };
-//////
-//////
-//////  previous_bus_cycle_state   = current_bus_cycle_state;         //  Save what the prior bus cycle was. Used in handling high byte/low byte  of dual /LMA address transfers
-//////
-//////  Logic_Analyzer_current_bus_cycle_state_LA = GPIO_PAD_STATUS_REG_LMA &         //  Yes, this is supposed to be a single &
-//////                               (BIT_MASK_WR | BIT_MASK_RD | BIT_MASK_LMA);      //  Require bus cycle state to be in bits 24, 25, and 26 of GPIO register
-//////
-//////  current_bus_cycle_state    = (enum bus_cycle_type)(Logic_Analyzer_current_bus_cycle_state_LA >> 24);            //  Make it ready to be used in enum comaprisons
-//////
-//////  schedule_read              = ((current_bus_cycle_state == BUS_RD) || (current_bus_cycle_state == BUS_ADDR_RD));
-//////  schedule_write             = (current_bus_cycle_state == BUS_WR);
-//////  schedule_address_increment = ((addReg >> 8) != 0x00FFU) &&                    //  If not I/O space
-//////                               !(!schedule_address_load & delayed_lma) &&       //    and
-//////                               (schedule_read ||  schedule_write);              //  Any bus read or write
-//////  schedule_address_load      = !schedule_address_load && delayed_lma;
-//////  delayed_lma                = (current_bus_cycle_state == BUS_ADDR) || (current_bus_cycle_state == BUS_ADDR_RD) || (current_bus_cycle_state == BUS_INTACK);
-//////  DMA_Acknowledge            = (current_bus_cycle_state == BUS_DMA_GRANT);
-//////  Interrupt_Acknowledge      = (current_bus_cycle_state == BUS_INTACK);
-//////
   if (schedule_read)
   {           //  Test if address is in our range and if it is , return true and set readData to the data to be sent to the bus
     HP85_Read_Us = onReadData(addReg);
