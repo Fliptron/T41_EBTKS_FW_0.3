@@ -36,8 +36,12 @@
 //
 //
 //  Enables for code modules             THESE ARE IN USE                         <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+
+#define DEVELOPMENT_MODE            (1)
+
+
 //
-//  Logging controll is one of 3 levels:    LOG_NONE      for no logging
+//  Logging control is one of 3 levels:     LOG_NONE      for no logging
 //                                          LOG_SERIAL    for Serial.printf
 //                                          LOG_FILE      for LOG File
 //
@@ -46,9 +50,10 @@
 #define LOG_SERIAL                (1)
 #define LOG_FILE                  (2)
 
-#define LOGLEVEL_GEN              LOG_SERIAL      //  For General Logging
+#define LOGLEVEL_GEN              LOG_FILE        //  For General Logging
 #define LOGLEVEL_AUX              LOG_SERIAL      //  For AUXROM Logging
 #define LOGLEVEL_1MB5             LOG_NONE        //  For 1MB5 activity
+#define LOGLEVEL_TAPE             LOG_NONE        //  For 1MB5 activity
 
 #define ENABLE_THREE_SHIFT_DETECTION    (0)       //  This seems to be the cause of crashes, if the general keyboard keys are pressed when the computer is busy
 

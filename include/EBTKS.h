@@ -587,6 +587,20 @@
 #define  LOGPRINTF_1MB5(...) do {sprintf(logfile_temp_text, __VA_ARGS__); append_to_logfile(logfile_temp_text); } while(0)
 #endif
 
+
+
+#if LOGLEVEL_TAPE == LOG_NONE
+#define LOGPRINTF_TAPE(...) do {} while(0)
+#endif
+
+#if LOGLEVEL_TAPE == LOG_SERIAL
+#define LOGPRINTF_TAPE(...) do {Serial.printf(__VA_ARGS__); } while(0)
+#endif
+
+#if LOGLEVEL_TAPE == LOG_FILE
+#define  LOGPRINTF_TAPE(...) do {sprintf(logfile_temp_text, __VA_ARGS__); append_to_logfile(logfile_temp_text); } while(0)
+#endif
+
 //
 //  DMA Support. EBTKS gets to generate /LMA, /RD, /WR
 //

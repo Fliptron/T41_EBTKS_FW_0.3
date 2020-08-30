@@ -32,8 +32,8 @@ struct __attribute__((__packed__)) AUXROM_RAM
   uint8_t       AR_SPAR1_CPU_Register_save[64];
   uint8_t       AR_SPAR1_CPU_SAD[3];
   uint8_t       AR_Pad_1;
-  uint16_t      AR_Present;
-  uint16_t      AR_R12_copy;
+  uint16_t      AR_Present;       //  A.ERLOG
+  uint16_t      AR_R12_copy;      //  A.MBR12
   uint8_t       AR_Pad_2[120];
   uint8_t       AR_Buffer_0[256];
   uint8_t       AR_Buffer_1[256];
@@ -67,6 +67,12 @@ struct __attribute__((__packed__)) S_HP85_String_Ref
   uint16_t     address;                                             //  Do I need to set MSB if I am over-writing a string, What about if the param is a quoted string?
 };
 
+struct __attribute__((__packed__)) S_HP85_String_Val
+{
+  uint16_t     length;                                              //  Length of string
+  uint16_t     address;                                             //  Location of string, could be a var, or result of an expression. Read only
+};
+
 struct __attribute__((__packed__)) S_HP85_String_Variable
 {
   uint8_t     flags_1;
@@ -82,15 +88,21 @@ struct __attribute__((__packed__)) S_Parameter_Block_N_N_N_N_N_N    //  up to 6 
   struct S_HP85_Number  numbers[6];
 };
 
-struct __attribute__((__packed__)) S_Parameter_Block_S              //  1 string ref, total of 6 bytes
+struct __attribute__((__packed__)) S_Parameter_Block_SREF           //  1 string ref, total of 6 bytes
 {
   struct S_HP85_String_Ref  string;
 };
 
+struct __attribute__((__packed__)) S_Parameter_Block_SVAL              //  1 string, total of 4 bytes
+{
+  struct S_HP85_String_Val  string_val;
+};
+
 union PARAMETER_BLOCK_OVERLAY
 {
-  struct S_Parameter_Block_N_N_N_N_N_N Parameter_Block_N_N_N_N_N_N;
-  struct S_Parameter_Block_S           Parameter_Block_S;
+  struct S_Parameter_Block_N_N_N_N_N_N    Parameter_Block_N_N_N_N_N_N;
+  struct S_Parameter_Block_SREF           Parameter_Block_SREF;
+  struct S_Parameter_Block_SVAL           Parameter_Block_SVAL;
 };
 
 EXTERN  union PARAMETER_BLOCK_OVERLAY Parameter_blocks;
@@ -183,6 +195,7 @@ EXTERN  uint32_t  Logic_Analyzer_Trigger_Mask;
 EXTERN  uint32_t  Logic_Analyzer_Trigger_Value;
 EXTERN  bool      Logic_Analyzer_Triggered;
 EXTERN  uint32_t  Logic_Analyzer_Pre_Trigger_Samples;
+EXTERN  int32_t   Logic_Analyzer_Event_Count_Init;
 EXTERN  int32_t   Logic_Analyzer_Event_Count;
 EXTERN  uint32_t  Logic_Analyzer_Samples_Till_Done;
 EXTERN  uint32_t  Logic_Analyzer_Index_of_Trigger;

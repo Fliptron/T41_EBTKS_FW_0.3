@@ -141,6 +141,7 @@ void show_logfile(void);
 void clean_logfile(void);
 void proc_addr(void);
 void proc_auxint(void);
+void show_mailboxes_and_usage(void);
 void just_once_func(void);
 void pulse_PWO(void);
 void dump_ram_window(void);
@@ -191,6 +192,7 @@ struct S_Command_Entry Command_Table[] =
   {"clean_logfile",    clean_logfile},
   {"addr",             proc_addr},
   {"auxint",           proc_auxint},
+  {"show_mb",          show_mailboxes_and_usage},
   {"jo",               just_once_func},
   {"pwo",              pulse_PWO},
   {"dump_ram_window",  dump_ram_window},
@@ -313,25 +315,46 @@ void Serial_Command_Poll(void)
   }
 }
 
-
 //
 //  Dump a region of memory as bytes. Whenever at an address with low 4 bits zero, do a newline and address
 //    If show_addr is false, suppress printing addresses, and the newline every 16 bytes
 //    If final_nl is false, suppress final newline
 //
 
-void hexdump(uint8_t *start_address, uint32_t count, bool show_addr, bool final_nl)
+void HexDump_T41_mem(uint32_t start_address, uint32_t count, bool show_addr, bool final_nl)
 {
   if(show_addr)
   {
-    Serial.printf("%08X: ", (uint32_t)start_address);  
+    Serial.printf("%08X: ", start_address);  
   }
   while(count--)
   {
-    Serial.printf("%02X ", *start_address++);
-    if((((uint32_t)start_address % 16) == 0) && show_addr)
+    Serial.printf("%02X ", *(uint8_t *)start_address++);
+    if(((start_address % 16) == 0) && show_addr)
     {
-      Serial.printf("\n%08X: ", (uint32_t)start_address);
+      Serial.printf("\n%08X: ", start_address);
+    }
+  }
+  if(final_nl)
+  {
+    Serial.printf("\n");
+  }
+}
+
+void HexDump_HP85_mem(uint32_t start_address, uint32_t count, bool show_addr, bool final_nl)
+{
+  uint8_t       temp;
+  if(show_addr)
+  {
+    Serial.printf("%08X: ", start_address);  
+  }
+  while(count--)
+  {
+    AUXROM_Fetch_Memory(&temp, start_address++, 1);
+    Serial.printf("%02X ", temp);
+    if(((start_address % 16) == 0) && show_addr)
+    {
+      Serial.printf("\n%08X: ", start_address);
     }
   }
   if(final_nl)
@@ -596,6 +619,7 @@ void help_6(void)
   Serial.printf("show_logfile\n");
   Serial.printf("clean_logfile\n");
   Serial.printf("auxint\n");
+  Serial.printf("show_mb\n");
   Serial.printf("jo\n");
   Serial.printf("pwo\n");
   Serial.printf("jay_pi\n");
@@ -757,6 +781,7 @@ void proc_addr(void)
   Logic_Analyzer_Trigger_Value   = 0;   //  trigger on anything
   Logic_Analyzer_Trigger_Mask    = 0;   //  trigger on anything
   Logic_Analyzer_Index_of_Trigger= 1;  //  Just give it a safe value
+  Logic_Analyzer_Event_Count_Init= 1;
   Logic_Analyzer_Event_Count     = 1;
   Logic_Analyzer_Triggered       = false;
 
@@ -774,6 +799,19 @@ void proc_auxint(void)
   interruptVector = 0x12; //SPAR1
   interruptReq = true;
   ASSERT_INT;
+}
+
+void show_mailboxes_and_usage(void)
+{
+  int     i;
+
+  Serial.printf("First 8 mailboxes, usages, lengths, and some buffer\n  #  MB    Usage  Length  Buffer\n");
+  for(i = 0 ; i < 8 ; i++)
+  {
+    Serial.printf("  %1d   %1d   %4d   %4d     ", i, AUXROM_RAM_Window.as_struct.AR_Mailboxes[i], AUXROM_RAM_Window.as_struct.AR_Usages[i], AUXROM_RAM_Window.as_struct.AR_Lengths[i]);
+    HexDump_T41_mem((uint32_t)&AUXROM_RAM_Window.as_struct.AR_Buffer_0[i*256], 8, false, true);
+  }
+  Serial.printf("\n");
 }
 
 void just_once_func(void)
@@ -942,7 +980,7 @@ void Setup_Logic_Analyzer(void)
   Logic_Analyzer_Valid_Samples   = 0;
   Logic_Analyzer_Trigger_Value   = 0;
   Logic_Analyzer_Trigger_Mask    = 0;
-  Logic_Analyzer_Event_Count     = 1;
+  Logic_Analyzer_Event_Count_Init= 1;
   //
   //  Setup Trigger Pattern
   //
@@ -1050,12 +1088,13 @@ redo_data_mask:
 
   Serial.printf("Event Count 1..N ");
   while (!serial_string_available) { get_serial_string_poll(); }
-  sscanf(serial_string, "%d", (int *)&Logic_Analyzer_Event_Count);
+  sscanf(serial_string, "%d", (int *)&Logic_Analyzer_Event_Count_Init);
   serial_string_used();
 
   Logic_Analyzer_Index_of_Trigger = 100;          //  Just give it a safe value
   Logic_Analyzer_Triggered = false;
   Logic_Analyzer_Samples_Till_Done     = Logic_Analyzer_Current_Buffer_Length - Logic_Analyzer_Pre_Trigger_Samples;
+  Logic_Analyzer_Event_Count = Logic_Analyzer_Event_Count_Init;
 
 
   Serial.printf("Logic Analyzer Setup complete. Type la_go to start\n");
@@ -1065,6 +1104,18 @@ void Logic_analyzer_go(void)
 {
   uint32_t      i, j, temp;
   int16_t       sample_number_relative_to_trigger;
+
+//
+//  This re-initialization allows re issuing la_go without re-entering parameters
+//
+  Logic_Analyzer_Channel_A_index  = 0;
+  Logic_Analyzer_Valid_Samples    = 0;
+  Logic_Analyzer_Index_of_Trigger = 100;          //  Just give it a safe value
+  Logic_Analyzer_Triggered        = false;
+  Logic_Analyzer_Event_Count = Logic_Analyzer_Event_Count_Init;
+  Logic_Analyzer_Samples_Till_Done= Logic_Analyzer_Current_Buffer_Length - Logic_Analyzer_Pre_Trigger_Samples;
+  // Keep Logic_Analyzer_Trigger_Value , Logic_Analyzer_Trigger_Mask , Logic_Analyzer_Current_Buffer_Length , Logic_Analyzer_Current_Index_Mask
+  //      Logic_Analyzer_Pre_Trigger_Samples
 
   Logic_Analyzer_State = ANALYZER_ACQUIRING;
 

@@ -112,7 +112,7 @@ void clean_logfile(void);
 
 void ioWriteAuxROM_Alert(uint8_t val);
 void AUXROM_Poll(void);
-void AUXROM_Fetch_Memory(uint8_t * dest, uint16_t src_addr, uint16_t num_bytes);
+void AUXROM_Fetch_Memory(uint8_t * dest, uint32_t src_addr, uint16_t num_bytes);
 void AUXROM_Fetch_Parameters(void * Parameter_Block_XXX , uint16_t num_bytes);
 double cvt_HP85_real_to_IEEE_double(uint8_t number[]);
 int32_t cvt_R12_int_to_int32(uint8_t number[]);
@@ -133,7 +133,9 @@ void serial_string_used(void);
 void Serial_Command_Poll(void);
 
 void str_tolower(char *p);
-void hexdump(uint8_t *start_address, uint32_t count, bool show_addr, bool final_nl);
+void HexDump_T41_mem (uint32_t start_address, uint32_t count, bool show_addr, bool final_nl);
+void HexDump_HP85_mem(uint32_t start_address, uint32_t count, bool show_addr, bool final_nl);
+void show_mailboxes_and_usage(void);
 
 void Setup_Logic_Analyzer(void);
 void Logic_analyzer_go(void);

@@ -398,6 +398,52 @@ GPIO9   33         7           CORE_PIN33_PORTREG
 
 */
 
+
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+//  Messages for startup indicating LOGLEVEL
+
+#if LOGLEVEL_GEN == LOG_NONE
+#define LOGLEVEL_GEN_MESSAGE      "LOGLEVEL_GEN is None\n"
+#elif LOGLEVEL_GEN == LOG_FILE
+#define LOGLEVEL_GEN_MESSAGE      "LOGLEVEL_GEN is File on SD card\n"
+#elif LOGLEVEL_GEN == LOG_SERIAL
+#define LOGLEVEL_GEN_MESSAGE      "LOGLEVEL_GEN is Serial via USB\n"
+#else
+#define LOGLEVEL_GEN_MESSAGE      "LOGLEVEL_GEN is unknows\n"
+#endif
+
+#if LOGLEVEL_AUX == LOG_NONE
+#define LOGLEVEL_AUX_MESSAGE      "LOGLEVEL_AUX is None\n"
+#elif LOGLEVEL_AUX == LOG_FILE
+#define LOGLEVEL_AUX_MESSAGE      "LOGLEVEL_AUX is File on SD card\n"
+#elif LOGLEVEL_AUX == LOG_SERIAL
+#define LOGLEVEL_AUX_MESSAGE      "LOGLEVEL_AUX is Serial via USB\n"
+#else
+#define LOGLEVEL_AUX_MESSAGE      "LOGLEVEL_AUX is unknows\n"
+#endif
+
+#if LOGLEVEL_1MB5 == LOG_NONE
+#define LOGLEVEL_1MB5_MESSAGE      "LOGLEVEL_1MB5 is None\n"
+#elif LOGLEVEL_1MB5 == LOG_FILE
+#define LOGLEVEL_1MB5_MESSAGE      "LOGLEVEL_1MB5 is File on SD card\n"
+#elif LOGLEVEL_1MB5 == LOG_SERIAL
+#define LOGLEVEL_1MB5_MESSAGE      "LOGLEVEL_1MB5 is Serial via USB\n"
+#else
+#define LOGLEVEL_1MB5_MESSAGE      "LOGLEVEL_1MB5 is unknows\n"
+#endif
+
+#if LOGLEVEL_TAPE == LOG_NONE
+#define LOGLEVEL_TAPE_MESSAGE      "LOGLEVEL_TAPE is None\n"
+#elif LOGLEVEL_TAPE == LOG_FILE
+#define LOGLEVEL_TAPE_MESSAGE      "LOGLEVEL_TAPE is File on SD card\n"
+#elif LOGLEVEL_TAPE == LOG_SERIAL
+#define LOGLEVEL_TAPE_MESSAGE      "LOGLEVEL_TAPE is Serial via USB\n"
+#else
+#define LOGLEVEL_TAPE_MESSAGE      "LOGLEVEL_TAPE is unknows\n"
+#endif
+
+
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////    Handlers for I/O device support
 
 bool ioReadNullFunc(void)                  //  This function is running within an ISR, keep it short and fast.
@@ -565,24 +611,25 @@ void setup()
   //  xterm.begin(80,25);
   //  xterm.begin(32,16);
 
-  
+#if DEVELOPMENT_MODE
+  //
+  //  Wait till the Virtual terminal is connected
+  //
   while (!Serial) {  };                                               //  Stall startup until the serial terminal is attached. Do this if we need to see startup messages
+#endif
 
-  //  Put some ROMS in the map
-  //  Note Octal in use for the ROM id!!
+  Serial.begin(115200);       //  USB Serial Baud value is irrelevant for this serial channel
 
-  //romMap[0340] = HP85_340_SERVICE_0xE0;
-  //romMap[0320] = HP85B_320_MASS_STORAGE_0xD0;    I think something else needs to be turned on if this is turned on
-
-  // use config.txt file on sd card for configuration
-  //  wait till the Virtual terminal is connected
-  Serial.begin(115200); //  USB Serial Baud value is irrelevant for this serial channel
-
-  delay(2000);          //  Give me a chance to turn the terminal emulator on, after I hear the USB enumeration Bing.
+  delay(2000);                //  Give me a chance to turn the terminal emulator on, after I hear the USB enumeration Bing.
 
   Serial.printf("HP-85 EBTKS Board Serial Diagnostics  %-4d\n", message_count++);
   TXD_Pulser(3);
-  EBTKS_delay_ns(10000);    //  10 us
+  EBTKS_delay_ns(10000);      //  10 us
+
+  Serial.printf("\n%s", LOGLEVEL_GEN_MESSAGE);
+  Serial.printf("%s", LOGLEVEL_AUX_MESSAGE);
+  Serial.printf("%s", LOGLEVEL_1MB5_MESSAGE);
+  Serial.printf("%s\n", LOGLEVEL_TAPE_MESSAGE);
 
   //
   //  As we have now moved the ROM storage area to DMAMEM which is not initialized, let's set it all to zero, just to be safe
@@ -596,8 +643,10 @@ void setup()
     }
   }
 
+  //  Use CONFIG.TXT file on sd card for configuration
+
   Serial.printf("Doing SD.begin\n");
-  if (!SD.begin(BUILTIN_SDCARD))      //  This takes about 85 ms.
+  if (!SD.begin(BUILTIN_SDCARD))          //  This takes about 85 ms.
   {
     Serial.println("SD begin failed");
     logfile_active = false;

@@ -185,7 +185,6 @@ inline void onPhi_1_Rise(void)                  //  This function is running wit
 //  08/27/2020 Total restore of old code, but with nicer variable names because
 //  the old code apparently works better.
 //
-//
 //  Bus Cycle Type from Patent US4424563 , Fig 13
 //
 //  This code depends on the following being true, found in above
@@ -197,7 +196,6 @@ inline void onPhi_1_Rise(void)                  //  This function is running wit
 //  Re-arange the columns of the Fig 13 in the patent to get these values without any bit shuffling
 //    /WR   /RD   /LMA      Note all signals are active low in hardware.
 //
-
 
 inline void onPhi_2_Rise(void)                                  //  This function is running within an ISR, keep it short and fast.
 {
@@ -263,6 +261,7 @@ inline void onPhi_2_Rise(void)                                  //  This functio
 //////  DMA_Acknowledge            = (current_bus_cycle_state == BUS_DMA_GRANT);
 //////  Interrupt_Acknowledge      = (current_bus_cycle_state == BUS_INTACK);
 //////
+
   if (schedule_read)
   {           //  Test if address is in our range and if it is , return true and set readData to the data to be sent to the bus
     HP85_Read_Us = onReadData(addReg);

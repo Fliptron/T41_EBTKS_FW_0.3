@@ -288,7 +288,7 @@ bool Tape::setFile(const char *fname)
   else
   {
     strlcpy(_filename, fname, sizeof(_filename));
-    Serial.printf("Tape file opened: %s\n", temptext);
+    LOGPRINTF_TAPE("Tape file opened: %s\n", temptext);
   }
     return !_tapeFile ? false : true;
 }
@@ -322,20 +322,20 @@ bool Tape::blockRead(uint32_t blkNum)
 
     if (!_tapeFile.seek(blkNum * TAPE_BLOCKSIZE * 2))
         {
-        Serial.printf("Tape seek error %d\n", blkNum);
+        Serial.printf("Tape seek error %d\n", blkNum);                      //  Maybe this should be pushed to the screen
         }
     else
         {
         int len = _tapeFile.readBytes((uint8_t *)&tapeBlock[0], TAPE_BLOCKSIZE * 2);
         if (len < (TAPE_BLOCKSIZE * 2))
             {
-            Serial.printf("End of tape image at block: %06d\n", blkNum);
+            Serial.printf("End of tape image at block: %06d\n", blkNum);    //  Is this an error message?
             }
         blockDirty = false;
         retval = true;
         }
 
-    Serial.printf("Read Block %06d\n", blkNum);
+    LOGPRINTF_TAPE("Read Block %06d\n", blkNum);
     return retval;
 }
 
@@ -343,13 +343,13 @@ void Tape::blockWrite(int blkNum)
 {
     if (!_tapeFile.seek(blkNum * TAPE_BLOCKSIZE * 2))
         {
-        Serial.printf("Tape seek error %d\n", blkNum);
+        Serial.printf("Tape seek error %d\n", blkNum);                      //  Maybe this should be pushed to the screen
         }
     else
     {
         _tapeFile.write((uint8_t *)&tapeBlock[0], TAPE_BLOCKSIZE * 2);
         blockDirty = false;
-        Serial.printf("Write Block %06d\n", blkNum);
+        LOGPRINTF_TAPE("Write Block %06d\n", blkNum);
     }
 }
 
@@ -360,7 +360,7 @@ void Tape::flush(void)
         blockWrite(currBlockNum);
         blockDirty = false;
     }
-    Serial.printf("Flushing tape image to disk\n");
+    LOGPRINTF_TAPE("Flushing tape image to disk\n");
     close();
 }
 
@@ -417,7 +417,7 @@ void Tape::poll(void)
 
     if (ioTapCtl != _prevCtrl)
     {
-        Serial.printf("Ctrl: %02X\n", ioTapCtl);
+        LOGPRINTF_TAPE("Ctrl: %02X\n", ioTapCtl);
     }
     _prevCtrl = ioTapCtl;
 }

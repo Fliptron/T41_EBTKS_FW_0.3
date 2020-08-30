@@ -13,22 +13,56 @@
 //
 //  USAGE Codes from the AUXROMs
 //
+                                            //  BASIC Keyword
+#define  AUX_USAGE_WROM          (  1)      //  none                                              Write buffer to AUXROM#/ADDR, re-checksum
+#define  AUX_USAGE_SDCD          (  2)      //  SDCD path$                                        Change the current SD directory
+#define  AUX_USAGE_SDCUR         (  3)      //  SDCUR$                                            Return the current SD directory
+#define  AUX_USAGE_SDCAT         (  4)      //  SDCAT [dst$Var, dstSizeVar, dstAttrVar, 0 | 1]    Get a directory listing entry for the current SD path (A.BOPT60=0 for "find first", =1 for "find next")
+#define  AUX_USAGE_SDFLSH        (  5)      //  SDFLUSH file#                                     Flush everything or a specific file#
+#define  AUX_USAGE_SDOPEN        (  6)      //  SDOPEN file#, filePath$, mode                     Open an SD file
+#define  AUX_USAGE_SDREAD        (  7)      //  SDREAD dst$Var, bytesReadVar, maxBytes, file#     Read an SD file
+#define  AUX_USAGE_SDCLOS        (  8)      //  SDCLOSE file#                                     Close an SD file
+#define  AUX_USAGE_SDWRIT        (  9)      //  SDWRITE src$, file#                               Write to an SD file
+#define  AUX_USAGE_SDSEEK        ( 10)      //  = SDSEEK(origin#, offset#, file#)                 Seek in an SD file
+#define  AUX_USAGE_SDDEL         ( 11)      //  SDDEL fileSpec$                                   Check if mounted disk/tape & error, else delete the file
+#define  AUX_USAGE_SDMKDIR       ( 12)      //  SDMKDIR folderName$                               Make a folder (only one level at a time, or error)
+#define  AUX_USAGE_SDRMDIR       ( 13)      //  SDRMDIR folderName$                               Remove a folder (error if not empty)
+#define  AUX_USAGE_3NUM          (256)      //  AUX3NUMS  varN, varN, varN                        Test keyword with 3 numeric values on R12
+#define  AUX_USAGE_1SREF         (257)      //  AUX1STRREF var$                                   Test KEYWORD WITH 1 STRING REF ON R12
+#define  AUX_USAGE_NFUNC         (258)      //  TESTNUMFUN(varN)                                  Numeric function with 1 numeric arg
+#define  AUX_USAGE_SFUNC         (259)      //  TESTSTRFUN$(var$)                                 String function with 1 string arg
 
-#define  AUX_USAGE_WROM         (1)               //  write buffer to AUXROM#/ADDR, re-checksum
-#define  AUX_USAGE_SDCD         (2)               //  change the current SD directory
-#define  AUX_USAGE_SDCUR        (3)               //  return the current SD directory
-#define  AUX_USAGE_SDCAT        (4)               //  get a directory listing entry for the current SD path (A.BOPT60=0 for "find first", =1 for "find next")
-#define  AUX_USAGE_SDFLSH       (5)               //  flush everything or a specific file#
-
-#define  AUX_USAGE_AUX3NUMS     (256)             //  test keyword with 3 numeric values on R12
-#define  AUX_USAGE_AUX1STRREF   (257)             //  TEST KEYWORD WITH 1 STRING REF ON R12
-#define  AUX_USAGE_NFUNC        (258)             //  numeric function with 1 numeric arg
-#define  AUX_USAGE_SFUNC        (259)             //  string function with 1 string arg
+#define  TRACE_TESTNUMFUN          (0)      //  Output logging info to Serial 
 
 
-
-#define TRACE_TESTNUMFUN         (0)
-
+//      These apparent Keywords don't have assigned Usage codes
+//
+//RSECTOR      STMT - RSECTOR dst$Var, sec#, msus$ {read a sector from a LIF disk, dst$Var must be at least 256 bytes long}
+//WSECTOR      STMT - WSECTOR src$, sec#, msus$ {write a sector to a LIF disk, src$ must be 256 bytes}
+//AUXCMD       STMT - AUXCMD cmd#, buf#, usage#, buf$ {invokes AUXROM command cmd#, passes other three args to that command, command must not return a value}
+//
+//                    ROM Label
+//                    AUXINT          AUXCMD 0, DC, DC, "DC"             - GENERATE FAKE SPAR1 INT      You probably don't want to do this unless you are debugging interrupts. Will crash HP85
+//                    WMAIL           AUXCMD 1, 0, usage, string         - write string and usage to buf#, don't wait. Does generate HEYEBTKS, so I think it can emulate a command that is passed 1 string
+//                    GENAUXER        AUXCMD(6, DC, error#, "error msg") - CALL AUXERR WITH error# AND error msg
+//
+//AUXERRN      FUNC - AUXERRN {return last custom error error#}
+//SDATTR       FUNC - a = SDATTR(filePath$) {return bits indicating file attributes, -1 if error}
+//SDSIZE       FUNC - s = SDSIZE(filePath$) {return size of file, or -1 if error}
+//AUXINP$      FUNC - AUXINP$(cmd#, buf#, usage#, buf$) {invokes AUXROM command cmd#, passes other three args to that command, command must return a string value}
+//
+//                    ROM Label
+//                    WMAILSTR        AUXINP$(2, 0, usage, string)        - write string and usage to buf#, waits, generate HEYEBTKS, so I think it can emulate a function call that is passed 1 string
+//                    AUXREV          AUXINP$(4,0,0,"")                   - returns revision for each AUXROM
+//                                                                          Test: DISP AUXINP$(4,0,0,"")      Result: "1:3 2:3"
+//
+//AUXINP       FUNC - AUXINP(cmd#, buf#, usage#, buf$) {invokes AUXROM command cmd#, passes other three args to that command, command must return a numeric value}
+//
+//                    ROM Label
+//                    WMAILNUM        AUXINP(3, 0, usage, string)         - same as WMAIL but waits for returned BUFFER (8-byte number) and BUFLEN==8  and returns that on stack
+//                    CMDCSUM         AUXINP(5,0,0,"")                    - return results of AUXROM checksums
+//                                                                          Test: DISP AUXINP (5,0,0,"")      Result: 0    (if ok)
+//
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////// 
 
 
@@ -54,19 +88,56 @@ void AUXROM_Poll(void)
   int         i;
   struct      S_HP85_String_Variable * HP85_String_Pointer;
   double      param_1_val;
+  int         string_len;
+  uint32_t    string_addr;
+  //uint32_t    my_R12;
 
   if(!new_AUXROM_Alert)
   {
     return;
   }
+  //my_R12 = AUXROM_RAM_Window.as_struct.AR_R12_copy;
 
   //LOGPRINTF_AUX("AUXROM Function called. Expected Mailbox 0, Got Mailbox # %d\n", Mailbox_to_be_processed);  
   //LOGPRINTF_AUX("AUXROM Got Usage %d\n", AUXROM_RAM_Window.as_struct.AR_Usages[Mailbox_to_be_processed]);
-  //LOGPRINTF_AUX("R12, got %06o\n", AUXROM_RAM_Window.as_struct.AR_R12_copy);
+  //LOGPRINTF_AUX("R12, got %06o\n", my_R12);
+  //Serial.printf("Showing 16 bytes prior to R12 address\n");
+  //HexDump_HP85_mem(my_R12 - 16, 16, true, true);
 
   switch(AUXROM_RAM_Window.as_struct.AR_Usages[Mailbox_to_be_processed])
   {
-    case AUX_USAGE_AUX3NUMS:
+
+    case AUX_USAGE_WROM:                      ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////  AUX_USAGE_WROM
+      break;
+    case AUX_USAGE_SDCD:                      ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////  AUX_USAGE_SDCD
+      break;
+    case AUX_USAGE_SDCUR:                      ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////  AUX_USAGE_SDCUR
+      break;
+    case AUX_USAGE_SDCAT:                      ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////  AUX_USAGE_SDCAT
+      break;
+    case AUX_USAGE_SDFLSH:                      ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////  AUX_USAGE_SDFLSH
+      break;
+    case AUX_USAGE_SDOPEN:                      ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////  AUX_USAGE_SDOPEN
+      break;
+    case AUX_USAGE_SDREAD:                      ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////  AUX_USAGE_SDREAD
+      break;
+    case AUX_USAGE_SDCLOS:                      ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////  AUX_USAGE_SDCLOS
+      break;
+    case AUX_USAGE_SDWRIT:                      ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////  AUX_USAGE_SDWRIT
+      break;
+    case AUX_USAGE_SDSEEK:                      ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////  AUX_USAGE_SDSEEK
+      break;
+    case AUX_USAGE_SDDEL:                      ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////  AUX_USAGE_SDDEL
+      break;
+    case AUX_USAGE_SDMKDIR:                      ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////  AUX_USAGE_SDMKDIR
+      break;
+    case AUX_USAGE_SDRMDIR:                      ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////  AUX_USAGE_SDRMDIR
+      break;
+
+
+
+    case AUX_USAGE_3NUM:                      ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////  AUX_USAGE_3NUM
+      //  AUX3NUMS n1, n2, n3
       //
       //  From email with Everett, 8/9/2020 @ 11:33
       //
@@ -87,7 +158,7 @@ void AUXROM_Poll(void)
 
       for(param_number = 0 ; param_number < 3 ; param_number++)
       {
-        hexdump(&Parameter_blocks.Parameter_Block_N_N_N_N_N_N.numbers[param_number].real_bytes[0], 8, false, false);
+        HexDump_T41_mem((uint32_t)&Parameter_blocks.Parameter_Block_N_N_N_N_N_N.numbers[param_number].real_bytes[0], 8, false, false);
         Serial.printf("    ");
       }
       Serial.printf("\n");
@@ -104,11 +175,10 @@ void AUXROM_Poll(void)
         }
       }
       LOGPRINTF_AUX("\n");
-      AUXROM_RAM_Window.as_struct.AR_Usages[Mailbox_to_be_processed] = 1;         //  Claim success
+      AUXROM_RAM_Window.as_struct.AR_Usages[Mailbox_to_be_processed] = 0;         //  Claim success
       break;
-      
-      
-    case AUX_USAGE_AUX1STRREF:
+    case AUX_USAGE_1SREF:                      ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////  AUX_USAGE_1SREF
+      //  AUX1STRREF
       //
       //  From email with Everett, 8/9/2020 @ 11:33
       //
@@ -133,17 +203,17 @@ void AUXROM_Poll(void)
       //  Not documented: If the String Variable is un-initialized, its Actual_Length is -1
       //
 
-      AUXROM_Fetch_Parameters(&Parameter_blocks.Parameter_Block_S.string.unuseable_abs_rel_addr , 6);
+      AUXROM_Fetch_Parameters(&Parameter_blocks.Parameter_Block_SREF.string.unuseable_abs_rel_addr , 6);
       LOGPRINTF_AUX("Unuseable Addr %06o   Length %06o  Address Passed %06o\n" ,
-                        Parameter_blocks.Parameter_Block_S.string.unuseable_abs_rel_addr,
-                        Parameter_blocks.Parameter_Block_S.string.length,
-                        Parameter_blocks.Parameter_Block_S.string.address );
+                        Parameter_blocks.Parameter_Block_SREF.string.unuseable_abs_rel_addr,
+                        Parameter_blocks.Parameter_Block_SREF.string.length,
+                        Parameter_blocks.Parameter_Block_SREF.string.address );
       //
       //  Per the above description, we need to collect the string starting 8 bytes lower in memory,
       //  and retrieve 8 more bytes than indicated by the passed length, which is the max length, not
       //  the Valid Length
       //
-      AUXROM_Fetch_Memory(&AUXROM_RAM_Window.as_struct.AR_Buffer_6[0], Parameter_blocks.Parameter_Block_S.string.address - 8, Parameter_blocks.Parameter_Block_S.string.length + 8);
+      AUXROM_Fetch_Memory(&AUXROM_RAM_Window.as_struct.AR_Buffer_6[0], Parameter_blocks.Parameter_Block_SREF.string.address - 8, Parameter_blocks.Parameter_Block_SREF.string.length + 8);
       //
       //  these variables are getting unwieldly. try and make it simple
       //
@@ -165,13 +235,11 @@ void AUXROM_Poll(void)
         }
         LOGPRINTF_AUX("\n");
       }
-      AUXROM_RAM_Window.as_struct.AR_Usages[Mailbox_to_be_processed] = 1;         //  Claim success
+      AUXROM_RAM_Window.as_struct.AR_Usages[Mailbox_to_be_processed] = 0;         //  Claim success
       break;
-
-
-    case AUX_USAGE_NFUNC:     //  HP85 function is TESTNUMFUN(123.456) returns the value after two conversions
-                              //  Inbound number is on the R12 stack, result goes into Buffer 6 (8 bytes)
-
+    case AUX_USAGE_NFUNC:                            ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////  AUX_USAGE_NFUNC
+      //  HP85 function is TESTNUMFUN(123.456) returns the value after two conversions
+      //  Inbound number is on the R12 stack, result goes into Buffer 6 (8 bytes)
       AUXROM_Fetch_Parameters(&Parameter_blocks.Parameter_Block_N_N_N_N_N_N.numbers[0].real_bytes[0] , 8);    //  Get one HP85 Real 8 byte number off the stack
       //
       //  Convert the HP85 number to IEEE Double, and convert it back and put in Buf 6
@@ -181,9 +249,9 @@ void AUXROM_Poll(void)
 
 #if TRACE_TESTNUMFUN
       Serial.printf("Input number: ");
-      hexdump(&Parameter_blocks.Parameter_Block_N_N_N_N_N_N.numbers[0].real_bytes[0], 8, false, false);
+      HexDump_T41_mem((uint32_t)&Parameter_blocks.Parameter_Block_N_N_N_N_N_N.numbers[0].real_bytes[0], 8, false, false);
       Serial.printf("     Output number: ");
-      hexdump(&AUXROM_RAM_Window.as_struct.AR_Buffer_6[0], 8, false, false);
+      HexDump_T41_mem((uint32_t)&AUXROM_RAM_Window.as_struct.AR_Buffer_6[0], 8, false, false);
       Serial.printf("difference  %.11e  ", param_1_val - cvt_HP85_real_to_IEEE_double(&AUXROM_RAM_Window.as_struct.AR_Buffer_6[0]) );
       Serial.printf(" Value %20.14G\n", param_1_val);
 #else
@@ -193,17 +261,44 @@ void AUXROM_Poll(void)
       }
 #endif
 
-      AUXROM_RAM_Window.as_struct.AR_Usages[Mailbox_to_be_processed] = 1;     //  Success
+      AUXROM_RAM_Window.as_struct.AR_Usages[Mailbox_to_be_processed] = 0;     //  Success
+      AUXROM_RAM_Window.as_struct.AR_Mailboxes[6] = 0;                        //  Release mailbox 6
       break;
-    case AUX_USAGE_SFUNC:
+    case AUX_USAGE_SFUNC:                            ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////  AUX_USAGE_SFUNC
+      //  show_mailboxes_and_usage();
+      //  HP85 function is TESTSTRFUN$("Some Text")) returns the string in Buffer 6
+      AUXROM_Fetch_Parameters(&Parameter_blocks.Parameter_Block_SVAL.string_val.length , 4);    //  Get one HP85 string_val off the stack
+      string_len = Parameter_blocks.Parameter_Block_SVAL.string_val.length;
+      string_addr = Parameter_blocks.Parameter_Block_SVAL.string_val.address;
+      //  Serial.printf("String Length:  %d\n", string_len);
+      //  Serial.printf("String Address: %06o\n", string_addr);
+      //  HexDump_HP85_mem(string_addr, 16, true, true);
+      AUXROM_Fetch_Memory(AUXROM_RAM_Window.as_struct.AR_Buffer_6, string_addr, string_len);
+
+//#if TRACE_TESTNUMFUN
+//      Serial.printf("Input number: ");
+//      HexDump_T41_mem((uint32_t)&Parameter_blocks.Parameter_Block_N_N_N_N_N_N.numbers[0].real_bytes[0], 8, false, false);
+//      Serial.printf("     Output number: ");
+//      HexDump_T41_mem((uint32_t)&AUXROM_RAM_Window.as_struct.AR_Buffer_6[0], 8, false, false);
+//      Serial.printf("difference  %.11e  ", param_1_val - cvt_HP85_real_to_IEEE_double(&AUXROM_RAM_Window.as_struct.AR_Buffer_6[0]) );
+//      Serial.printf(" Value %20.14G\n", param_1_val);
+//#endif
+
+      AUXROM_RAM_Window.as_struct.AR_Lengths[6] = string_len;
+      AUXROM_RAM_Window.as_struct.AR_Usages[6] = string_len;
+
+      AUXROM_RAM_Window.as_struct.AR_Usages[Mailbox_to_be_processed] = 0;     //  Success
+      AUXROM_RAM_Window.as_struct.AR_Mailboxes[6] = 0;                        //  Release mailbox 6
       break;
 
     default:
-      AUXROM_RAM_Window.as_struct.AR_Usages[Mailbox_to_be_processed] = 0;     //  Failure, unrecognized Usage code
+      AUXROM_RAM_Window.as_struct.AR_Usages[Mailbox_to_be_processed] = 1;     //  Failure, unrecognized Usage code
   }
 
   new_AUXROM_Alert = false;
   AUXROM_RAM_Window.as_struct.AR_Mailboxes[Mailbox_to_be_processed] = 0;      //  Relinquish control of the mailbox
+  show_mailboxes_and_usage();
+
 }
 
 //
@@ -219,8 +314,9 @@ void AUXROM_Poll(void)
 //
 //  The expediant (and slower and less bug prone) is just transfer 1 byte at
 //  a time and do a test for each. Doing this for now.
+//
 
-void AUXROM_Fetch_Memory(uint8_t * dest, uint16_t src_addr, uint16_t num_bytes)
+void AUXROM_Fetch_Memory(uint8_t * dest, uint32_t src_addr, uint16_t num_bytes)
 {
   while(num_bytes--)
   {
