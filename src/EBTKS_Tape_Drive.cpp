@@ -432,9 +432,9 @@ void tape_handle_command_flush(void)
 void tape_handle_command_load(void)
 {
   Serial.printf("\nLoad new tape file. Enter filename: ");
-  while (!serial_string_available) //  Hang here till we get a file name (hopefully)
+  if(!wait_for_serial_string())       //  Hang here till we get a file name (hopefully)
   {
-    get_serial_string_poll();
+    return;                           //  Got a Ctrl-C , so abort command
   }
   Serial.printf("\nOpening tape: %s%s \n", tape.getPath() ,   serial_string);
   tape.close();

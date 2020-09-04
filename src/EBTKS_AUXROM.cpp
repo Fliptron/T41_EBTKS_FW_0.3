@@ -32,7 +32,7 @@
 #define  AUX_USAGE_NFUNC         (258)      //  TESTNUMFUN(varN)                                  Numeric function with 1 numeric arg
 #define  AUX_USAGE_SFUNC         (259)      //  TESTSTRFUN$(var$)                                 String function with 1 string arg
 
-#define  TRACE_TESTNUMFUN          (0)      //  Output logging info to Serial 
+#define  TRACE_TESTNUMFUN          (0)      //  Output logging info to Serial
 
 
 //      These apparent Keywords don't have assigned Usage codes
@@ -63,7 +63,7 @@
 //                    CMDCSUM         AUXINP(5,0,0,"")                    - return results of AUXROM checksums
 //                                                                          Test: DISP AUXINP (5,0,0,"")      Result: 0    (if ok)
 //
-////////////////////////////////////////////////////////////////////////////////////////////////////////////////// 
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 
 //
@@ -90,19 +90,21 @@ void AUXROM_Poll(void)
   double      param_1_val;
   int         string_len;
   uint32_t    string_addr;
-  //uint32_t    my_R12;
+  uint32_t    my_R12;
 
   if(!new_AUXROM_Alert)
   {
     return;
   }
-  //my_R12 = AUXROM_RAM_Window.as_struct.AR_R12_copy;
 
-  //LOGPRINTF_AUX("AUXROM Function called. Expected Mailbox 0, Got Mailbox # %d\n", Mailbox_to_be_processed);  
-  //LOGPRINTF_AUX("AUXROM Got Usage %d\n", AUXROM_RAM_Window.as_struct.AR_Usages[Mailbox_to_be_processed]);
-  //LOGPRINTF_AUX("R12, got %06o\n", my_R12);
-  //Serial.printf("Showing 16 bytes prior to R12 address\n");
-  //HexDump_HP85_mem(my_R12 - 16, 16, true, true);
+  my_R12 = AUXROM_RAM_Window.as_struct.AR_R12_copy;
+  LOGPRINTF_AUX("AUXROM Function called. Got Mailbox # %d\n", Mailbox_to_be_processed);
+  LOGPRINTF_AUX("AUXROM Got Usage %d\n", AUXROM_RAM_Window.as_struct.AR_Usages[Mailbox_to_be_processed]);
+  LOGPRINTF_AUX("R12, got %06o\n", my_R12);
+  Serial.printf("Showing 16 bytes prior to R12 address\n");
+  HexDump_HP85_mem(my_R12 - 16, 16, true, true);
+  Serial.flush();
+  delay(500);
 
   switch(AUXROM_RAM_Window.as_struct.AR_Usages[Mailbox_to_be_processed])
   {
@@ -110,6 +112,14 @@ void AUXROM_Poll(void)
     case AUX_USAGE_WROM:                      ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////  AUX_USAGE_WROM
       break;
     case AUX_USAGE_SDCD:                      ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////  AUX_USAGE_SDCD
+      Serial.printf("Found SDCD\n");
+      show_mailboxes_and_usage();
+      //AUXROM_SDCD();
+      AUXROM_RAM_Window.as_struct.AR_Usages[Mailbox_to_be_processed] = 0;     //  Success
+      //AUXROM_RAM_Window.as_struct.AR_Mailboxes[6] = 0;                        //  Release mailbox 6
+
+
+
       break;
     case AUX_USAGE_SDCUR:                      ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////  AUX_USAGE_SDCUR
       break;
@@ -183,7 +193,7 @@ void AUXROM_Poll(void)
       //  From email with Everett, 8/9/2020 @ 11:33
       //
       //  AUX1STRREF A$
-      //  a) When AUX1STRREF runtime gets called, leave the string reference 
+      //  a) When AUX1STRREF runtime gets called, leave the string reference
       //    on the stack, write the R12 value to A.MBR12.
       //  b) Send a message to EBTKS:
       //      Write "TEST" to BUF0
@@ -296,8 +306,8 @@ void AUXROM_Poll(void)
   }
 
   new_AUXROM_Alert = false;
-  AUXROM_RAM_Window.as_struct.AR_Mailboxes[Mailbox_to_be_processed] = 0;      //  Relinquish control of the mailbox
   show_mailboxes_and_usage();
+  AUXROM_RAM_Window.as_struct.AR_Mailboxes[Mailbox_to_be_processed] = 0;      //  Relinquish control of the mailbox
 
 }
 
@@ -466,7 +476,7 @@ int32_t cvt_R12_int_to_int32(uint8_t number[])
 //
 //  Examples of how HP85 numbers are encoded
 //                  0                           1                          -1
-//    00 00 00 00 FF 00 00 00     00 00 00 00 FF 01 00 00     00 00 00 00 FF 99 99 99     
+//    00 00 00 00 FF 00 00 00     00 00 00 00 FF 01 00 00     00 00 00 00 FF 99 99 99
 //
 //                10                         100                        1000
 //    00 00 00 00 FF 10 00 00     00 00 00 00 FF 00 01 00     00 00 00 00 FF 00 10 00

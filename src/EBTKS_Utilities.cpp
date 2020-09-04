@@ -212,6 +212,26 @@ struct S_Command_Entry Command_Table[] =
 //  Down Arrow      0xC3 0xA0 0x50      0x1B 0x42
 //  Right Arrow     0xC3 0xA0 0x4D      0x1B 0x43
 
+//
+//  Wait for a serial string, Normally returns true, but returns false if ^C is typed
+//
+
+static bool Ctrl_C_seen;
+
+bool wait_for_serial_string(void)
+{
+  Ctrl_C_seen = false;
+  while (!serial_string_available)
+  {
+    get_serial_string_poll();
+    if(Ctrl_C_seen)
+    {
+      return false;
+    }
+  }
+  return true;
+}
+
 void get_serial_string_poll(void)
 {
   char  current_char;
@@ -219,6 +239,7 @@ void get_serial_string_poll(void)
   if(serial_string_available)
   {
     LOGPRINTF("Error: get_serial_string_poll() called, but serial_string_available is true\n");
+    Ctrl_C_seen = true;     //  Not really a Ctrl-C , but treat it this way to error out of whatever is calling this
     return;
   }
 
@@ -254,6 +275,7 @@ void get_serial_string_poll(void)
       case '\x03':                                          //  Ctrl-C.  Flush any current string. This fails with the VSCode terminal because it kils the terminal
         serial_string_length    = 0;
         Serial.printf("  ^C\n");
+        Ctrl_C_seen = true;
         break;
       case '\x14':                                          //  Ctrl-T.  Show the current incomplete command
         serial_string[serial_string_length] = '\0';
@@ -286,7 +308,7 @@ void Serial_Command_Poll(void)
   int   command_index;
 
   get_serial_string_poll();
-  if(!serial_string_available) return;
+  if(!serial_string_available) return;          //  Don't hang around here if there isn't a cmmand to be processed
 
   //  Serial.printf("\nSerial_Command_Poll diag: serial_string_available %1d\n", serial_string_available);
   //  Serial.printf(  "                          serial_string_length    %2d  serial_string [%s]   ", serial_string_length, serial_string);
@@ -988,7 +1010,10 @@ redo_bus:
   Serial.printf("Logic Analyzer Setup\nFirst enter the match pattern, then the mask (set bits to enable match)\n");
   Serial.printf("Order is control signals (3), Address (16), data (8)\nBus Cycle /WR /RD /LMA pattern as 0/1, 3 bits (0 is asserted):");
 
-  while (!serial_string_available) { get_serial_string_poll(); }
+  if(!wait_for_serial_string())
+  {
+    return;                           //  Got a Ctrl-C , so abort command
+  }
 
   if(strlen(serial_string) != 3)
   { Serial.printf("Please enter a 3 digit number, only use 0 and 1\n\n"); serial_string_used(); goto redo_bus; }
@@ -1010,7 +1035,10 @@ redo_bus:
 redo_busmask:
   Serial.printf("Bus Cycle /WR /RD /LMA Mask as 0/1, 3 bits(1 is enabled):");
 
-  while (!serial_string_available) { get_serial_string_poll(); }
+  if(!wait_for_serial_string())
+  {
+    return;                           //  Got a Ctrl-C , so abort command
+  }
 
   if(strlen(serial_string) != 3)
   { Serial.printf("Please enter a 3 digit number, only use 0 and 1\n\n"); serial_string_used(); goto redo_busmask; }
@@ -1031,7 +1059,10 @@ redo_busmask:
 
 redo_address_pattern:
   Serial.printf("Address pattern is 6 octal digits:");
-  while (!serial_string_available) { get_serial_string_poll(); }
+  if(!wait_for_serial_string())
+  {
+    return;                           //  Got a Ctrl-C , so abort command
+  }
   if(strlen(serial_string) != 6)
   { Serial.printf("Please enter a 6 octal digits, only use 0 through 7\n\n"); serial_string_used(); goto redo_address_pattern; }
   sscanf(serial_string, "%o", &address);
@@ -1041,7 +1072,10 @@ redo_address_pattern:
 
 redo_address_mask:
   Serial.printf("Address mask is 6 octal digits:");
-  while (!serial_string_available) { get_serial_string_poll(); }
+  if(!wait_for_serial_string())
+  {
+    return;                           //  Got a Ctrl-C , so abort command
+  }
   if(strlen(serial_string) != 6)
   { Serial.printf("Please enter a 6 octal digits, only use 0 through 7 (1 bits enable match)\n\n"); serial_string_used(); goto redo_address_mask; }
   sscanf(serial_string, "%o", &address);
@@ -1051,7 +1085,10 @@ redo_address_mask:
 
 redo_data_pattern:
   Serial.printf("Data pattern is 3 octal digits:");
-  while (!serial_string_available) { get_serial_string_poll(); }
+  if(!wait_for_serial_string())
+  {
+    return;                           //  Got a Ctrl-C , so abort command
+  }
   if(strlen(serial_string) != 3)
   { Serial.printf("Please enter a 3 octal digits, only use 0 through 7\n\n"); serial_string_used(); goto redo_data_pattern; }
   sscanf(serial_string, "%o", &data);
@@ -1061,7 +1098,10 @@ redo_data_pattern:
 
 redo_data_mask:
   Serial.printf("Data mask is 3 octal digits:");
-  while (!serial_string_available) { get_serial_string_poll(); }
+  if(!wait_for_serial_string())
+  {
+    return;                           //  Got a Ctrl-C , so abort command
+  }
   if(strlen(serial_string) != 3)
   { Serial.printf("Please enter a 3 octal digits, only use 0 through 7 (1 bits enable match)\n\n"); serial_string_used(); goto redo_data_mask; }
   sscanf(serial_string, "%o", &data);
@@ -1081,13 +1121,19 @@ redo_data_mask:
   Logic_Analyzer_Current_Index_Mask    = LOGIC_ANALYZER_INDEX_MASK;
 
   Serial.printf("Pretrigger samples (0 to %d):", Logic_Analyzer_Current_Buffer_Length-4);
-  while (!serial_string_available) { get_serial_string_poll(); }
+  if(!wait_for_serial_string())
+  {
+    return;                           //  Got a Ctrl-C , so abort command
+  }
   sscanf(serial_string, "%d", (int *)&Logic_Analyzer_Pre_Trigger_Samples);
   if(Logic_Analyzer_Pre_Trigger_Samples > Logic_Analyzer_Current_Buffer_Length-4) Logic_Analyzer_Pre_Trigger_Samples = Logic_Analyzer_Current_Buffer_Length-4;
   serial_string_used();
 
   Serial.printf("Event Count 1..N ");
-  while (!serial_string_available) { get_serial_string_poll(); }
+  if(!wait_for_serial_string())
+  {
+    return;                           //  Got a Ctrl-C , so abort command
+  }
   sscanf(serial_string, "%d", (int *)&Logic_Analyzer_Event_Count_Init);
   serial_string_used();
 

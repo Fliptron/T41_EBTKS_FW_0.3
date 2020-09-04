@@ -118,6 +118,15 @@ double cvt_HP85_real_to_IEEE_double(uint8_t number[]);
 int32_t cvt_R12_int_to_int32(uint8_t number[]);
 //void cvt_int32_to_HP85_tagged_integer(uint8_t * dest, int val);
 void cvt_IEEE_double_to_HP85_number(uint8_t * dest, double val);
+bool Resolve_Path(char *New_Path, uint8_t mode);
+
+//
+//  AUXROM Functions/Keywords/Statements
+//
+
+void AUXROM_SDCD(void);
+
+
 
 //
 //  Utility Functions
@@ -127,6 +136,7 @@ void TXD_Pulser(uint8_t count);
 
 void EBTKS_delay_ns(int32_t count);
 
+bool wait_for_serial_string(void);
 void get_serial_string_poll(void);
 void serial_string_used(void);
 
