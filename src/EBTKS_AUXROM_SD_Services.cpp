@@ -3,6 +3,19 @@
 //                    for SD card access from the HP85 BASIC Programs
 //  09/01/2020        Work on SDCD. Decide that path separator is '/' and paths have a trailing '/'
 //                    Initial path is "/"
+//  09/04/2020        Testing of Resolve_Path()
+
+
+/////////////////////On error message / error codes.  Go see email log for this text in context
+//
+//        Error Message numbers, returned in Usage[0] (or which ever was used for the call)
+//
+//        0             No error
+//        1-99          mail??   amybe he means mailbox specific, or mail is mailbox, usage, len, and buffer
+//        100-199       subtract 100 and it is a system error message
+//
+//        200-299       subtract 200 and index the AUXROM error table. 8 is custom warning, 209 is custom error, 211..N are fixed messages
+//                      use AUXERRN to get number
 //
 
 #include <Arduino.h>
@@ -22,64 +35,31 @@ static bool         Resolved_Path_ends_with_slash;
 static File         temp_file;
 
 //
-//  Set the current SD directory to the HP85 provided string
-//    If the first character is '\' then it is an absolute path, otherwise it is relative to current path
+//  Update the Current Path with the provided path. Most of the hard work happens in Resolve_Path()
+//  See its documentation
 //
-//    Return true if the path is valid
+//  AUXROM puts the update path in Buffer 6, and the length in AR_Lengths[6], Buffer 6
+//  Mailbox 6 is used for the handshake
 //
 
 void AUXROM_SDCD(void)
 {
-
-
-
+  Serial.printf("Current Path before SDCD [%s]\n", Current_Path);
+  Serial.printf("Update Path via AUXROM   [%s]\n", AUXROM_RAM_Window.as_struct.AR_Buffer_6);
+  if(Resolve_Path((char *)AUXROM_RAM_Window.as_struct.AR_Buffer_6, 0))    //  Check the directory exists
+  {
+    strlcpy(Current_Path, Resolved_Path, MAX_SD_PATH_LENGTH + 2);
+    Serial.printf("Success. Current Path is now [%s]\n", Current_Path);
+    AUXROM_RAM_Window.as_struct.AR_Usages[6] = 0;                         //  Indicate Success
+  }
+  else
+  {
+    Serial.printf("Failure to update Current Path\n");
+    AUXROM_RAM_Window.as_struct.AR_Usages[6] = 213;                       //  Indicate Failure
+  }
 
   AUXROM_RAM_Window.as_struct.AR_Mailboxes[6] = 0;                        //  Release mailbox 6
   return;
-
-
-
-  AUXROM_Fetch_Parameters(&Parameter_blocks.Parameter_Block_SVAL.string_val.length , 4);    //  Get one HP85 string_val off the stack. This line gets the length and the address of teh string
-  uint32_t  string_len = Parameter_blocks.Parameter_Block_SVAL.string_val.length;
-  uint32_t  string_addr = Parameter_blocks.Parameter_Block_SVAL.string_val.address;         //  This is the address in HP85 memory. Need to copy it to 
-
-  Serial.printf("String Length:  %d\n", string_len);
-  Serial.printf("String Address: %06o\n", string_addr);
-  HexDump_HP85_mem(string_addr, 16, true, true);
-
-  if(string_len > MAX_SD_PATH_LENGTH)
-  {
-    goto error_exit;
-  }
-
-  //
-  //  Use AR_Buffer_6 as a temp area
-  //
-
-  AUXROM_Fetch_Memory(AUXROM_RAM_Window.as_struct.AR_Buffer_6, string_addr, string_len);    //  Copy the Path String to a local buffer
-  AUXROM_RAM_Window.as_struct.AR_Buffer_6[string_len] = 0x00;
-
-  Serial.printf("As a C string [%s]\n", AUXROM_RAM_Window.as_struct.AR_Buffer_6);
-
-  temp_file = SD.open((const char *)AUXROM_RAM_Window.as_struct.AR_Buffer_6, O_READ);
-  if(!temp_file)
-  {
-    Serial.printf("Failed to open\n");
-    goto error_exit;
-  }
-
-  Serial.printf("Is it a Directory?  %s\n", temp_file.isDirectory() ? "Yes":"No");
-
-
-  AUXROM_RAM_Window.as_struct.AR_Usages[Mailbox_to_be_processed] = 0;     //  Success
-  AUXROM_RAM_Window.as_struct.AR_Mailboxes[6] = 0;                        //  Release mailbox 6
-  return;
-
-error_exit:
-  AUXROM_RAM_Window.as_struct.AR_Usages[Mailbox_to_be_processed] = 213;    //  Success
-  AUXROM_RAM_Window.as_struct.AR_Mailboxes[6] = 0;                        //  Release mailbox 6
-
-  
 }
 
 //
@@ -94,15 +74,17 @@ error_exit:
 //  Mode 0: Dir           The expected result is a path to a directory, return false if it isn't
 //          Chk Exists    The returned path in Resolved_Path both starts and ends with '/'
 //                        Resolved_Path_Last_Segment will have the last directory name in the path
-//                        
+//                        If user forgets the trailing '/', it is added
+//
 //  Mode 1: Dir           Same as mode 0, but don't test the path for being a valid directory
 //                        (used for SDMKDIR, with the last segment being the directory to create)
 //                        Resolved_Path_Last_Segment will have the last directory name in the path
-//                        
+//                        If user forgets the trailing '/', it is added
+//
 //  Mode 2: File          The expected result is a path to a file, return false if the file does not exist
 //          Chk Exists    The returned path in Resolved_Path starts with a '/' but there is no '/' at the end
 //                        Resolved_Path_Last_Segment will have the file name
-//                        
+//
 //  Mode 3: File          Same as mode 2, but don't test the path for being a valid filename
 //                        (used for open for WRITE or CREATE when we are not expecting the file to already exist)
 //                        The returned path in Resolved_Path starts with a '/' but there is no '/' at the end
@@ -111,40 +93,60 @@ error_exit:
 //  Returns true if no errors detected
 //
 //  Also sets Resolved_Path_ends_with_slash true if there was a trailing '/'. This indicates a properly formed directory path.
-//  If this is false, either we have a badly formed directory path, or the last segment is a filename.
+//  If this is false, the last segment is a filename. Mode must be 3 or 4.
 //  If it is a filename, it can be found in Resolved_Path_Last_Segment. It is undefined if there is an error exit.
-//  
 //
+//
+
+#define TRACE_NONE        0
+#define TRACE_ALL         1
+
+//  Either TRACE_NONE or TRACE_ALL
+#define TRACE_Resolve_Path    TRACE_ALL
+
+#if TRACE_Resolve_Path == TRACE_NONE
+#define TRACERP(...) do {} while(0)
+#endif
+#if TRACE_Resolve_Path == TRACE_ALL
+#define TRACERP(...) do {Serial.printf(__VA_ARGS__); } while(0)
+#endif
+
 
 bool Resolve_Path(char *New_Path, uint8_t mode)
 {
   char *    dest_ptr;                                         //  Points to the trailing 0x00 of the new path we are creating
   char *    dest_ptr2;                                        //  Used while processing ../
   char *    src_ptr;                                          //  Points to next character in New_Path to be processed
-  char *    last_seg_ptr;                                     //  Points to next character in the last segment string.
+  char *    last_seg_ptr;                                     //  Used while processinge last segment string.
   bool      directory_test;
   File      tempfile;
 
   if(New_Path[0] == '/')
 	{
-	  Resolved_Path[0] = '/';                                       //  Handle an absolute path
+	  Resolved_Path[0] = '/';                                   //  Handle an absolute path
 	  Resolved_Path[1] = 0x00;
 	  dest_ptr = Resolved_Path + 1;
 	  src_ptr = New_Path + 1;
+	  TRACERP("-A");
 	}
 	else
 	{
-	  strlcpy(Resolved_Path, Current_Path, MAX_SD_PATH_LENGTH);     //  Handle relative path, so start by copying the Current_Path to the work area. Assume it does not contain any ../ or ./
+	  strlcpy(Resolved_Path, Current_Path, MAX_SD_PATH_LENGTH); //  Handle relative path, so start by copying the Current_Path to the work area. Assume it does not contain any ../ or ./
 	                                                            //  Also, since Current_Path is a directory path, it has both leading and trailing '/' (if root, just one '/')
 	  dest_ptr = Resolved_Path + strlen(Resolved_Path);
 	  src_ptr = New_Path;
+	  TRACERP("-B");
 	  if(Resolved_Path[0] != '/')
 	  {
 	    return false;                                           //  make sure that the first character of the path we are building is a '/'
 	  }
+	  if(dest_ptr[-1] != '/')
+	  {
+	    return false;                                           //  make sure that the last character of the path we are building is a '/'
+	  }
 	}
 
-  Resolved_Path_ends_with_slash = true;
+  TRACERP("\nResolved Path (so far) [%s]\n", Resolved_Path);
 
   //
   //  Parse the New_Path. Handle the following:
@@ -167,6 +169,8 @@ bool Resolve_Path(char *New_Path, uint8_t mode)
     //
     if(src_ptr[0] == 0x00)
     {
+      TRACERP("-C");
+        TRACERP("\nDone. Resolved Path [%s]\n", Resolved_Path);
       break;                                          //  At end of the New_Path
     }
     if(src_ptr[0] == '/')
@@ -175,11 +179,13 @@ bool Resolve_Path(char *New_Path, uint8_t mode)
     }
     if(src_ptr[0] == '.' && src_ptr[1] == '/')
     {
+      TRACERP("-D");
       src_ptr += 2;                                   //  Found "./" which has no use, so just delete it
       continue;
     }
     if(src_ptr[0] == '.' && src_ptr[1] == '.' && src_ptr[2] == '/')
     {
+      TRACERP("-E");
       src_ptr += 3;                                   //  Found "../" which means up 1 directory, so need to delete a path segment
       if(strlen(Resolved_Path) <= 2)                  //  The minimal Resolved_Path that could have a directory to be removed is 3 characters"/x/"
       {                                               //    This could have been done with dest_ptr - Resolved_Path, strlen is clearer and less bug prone.
@@ -197,54 +203,102 @@ bool Resolve_Path(char *New_Path, uint8_t mode)
       //
       while(*dest_ptr2 != '/')
       {
+        TRACERP("-F");
         dest_ptr2--;                                  //  Scan backwards
       }
-      dest_ptr[1] = 0x00;                             //  Found the prior '/', set the following character to 0x00 thus deleting a path segment
-      Resolved_Path_ends_with_slash = true;
+      dest_ptr2[1] = 0x00;                            //  Found the prior '/', set the following character to 0x00 thus deleting a path segment
+      dest_ptr = dest_ptr2 + 1;
+      TRACERP("-G");
+      TRACERP("\nResolved Path [%s]\n", Resolved_Path);
       continue;
     }
     //
     //  If we get here, none of the special cases apply, so just append a path segment, including its trailing '/'
-    //  A New_Path that does not have a trailing '/' is also valid. This indicates the last segment is a filename
+    //  In modes 2 and 3 A New_Path that does not have a trailing '/' is also valid. This indicates the last segment is a filename
     //
-    last_seg_ptr = Resolved_Path_Last_Segment;
+    TRACERP("-H");
     while(1)
     {
       if(src_ptr[0] == '/')                           //  This should not match on the first pass through this while(1) loop, as we have already checked for a leading '/'
       {
+        TRACERP("-I");
         *dest_ptr++ = *src_ptr++;                     //  Copy the '/' and we are done for this path segment
         *dest_ptr = 0x00;                             //  Mark the new end of the string, probably redundant
-        Resolved_Path_ends_with_slash = true;
         break;
       }
       if(src_ptr[0] == 0x00)
-      {
-        *dest_ptr     = 0x00;                         //  Mark the new end of the string, probably redundant
-        *last_seg_ptr = 0x00;                         //  Mark the new end of last segment, probably redundant
-        Resolved_Path_ends_with_slash = false;        //  No trailing slash, maybe it's a filename
+      {                                               //  Finished processing chcarcters from New_Path
+        if((mode == 0) || (mode = 1))
+        {                                             //  If we get to the end of processing the New_Path while processing a segment, and mode is 0 or 1, we have a directory
+                                                      //  but the user failed to provid the trailing '/'. We help them out by providing it.
+//          *dest_ptr++ = '/';
+//          *dest_ptr   = 0x00;
+        }
+        TRACERP("-J");
+        TRACERP("\nResolved Path [%s]\n", Resolved_Path);
         break;
       }
       //
       //  Not a '/' , and not end of string, so just copy the character
       //
-      *dest_ptr++     = *src_ptr;                     //  Copy the character
-      *last_seg_ptr++ = *src_ptr++;                   //  Update last segment
+      TRACERP("-K");
+      *dest_ptr++     = *src_ptr++;                   //  Copy the character
       *dest_ptr       = 0x00;                         //  Keep it a valid string
-      *last_seg_ptr   = 0x00;                         //  Keep it a valid string
     }
     //
     //  End of this piece of the SD path, loop back for more
     //
   }
   //
-  //  We have finished Resolving the path. Now process mode
+  //  We have finished Resolving the path. Now get the last segment and process mode
   //
+  if(strlen(Resolved_Path) == 1)
+  {
+    Resolved_Path_ends_with_slash = true;
+    Resolved_Path_Last_Segment[0] = 0x00;
+  }
+  else
+  {
+    if(dest_ptr[-1] == '/')
+    {                                                 //  Resolved_Path has trailing '/', start search for prior '/'
+      Resolved_Path_ends_with_slash = true;
+      last_seg_ptr = dest_ptr - 2;
+    }
+    else
+    {                                                 //  No trailing '/'
+      Resolved_Path_ends_with_slash = false;
+      last_seg_ptr = dest_ptr - 1;
+    }
+    while(*last_seg_ptr != '/')
+    {
+      last_seg_ptr--;
+    }
+    last_seg_ptr++;                                       //  Just after the prior '/'
+    strcpy(Resolved_Path_Last_Segment, last_seg_ptr);
+    if(Resolved_Path_ends_with_slash)
+    {
+      Resolved_Path_Last_Segment[strlen(Resolved_Path_Last_Segment) - 1] = 0x00;    //  Trim trailing '/' if it is there.
+    }
+  }
+  TRACERP("\nResolved Path [%s]\n", Resolved_Path);
+  TRACERP(  "Last Segment  [%s]\n", Resolved_Path_Last_Segment);
+  TRACERP(  "Trailing /    [%s]\n", Resolved_Path_ends_with_slash ? "true":"false");
+
+  TRACERP("-L");
   switch(mode)
   {
     case 0:                                           //  The expected result is a path to a directory that exists
+      TRACERP("\n-M\n");
+      directory_test = SD.exists(Resolved_Path);
+      TRACERP("SD.exists reports %s\n", directory_test ? "true":"false");
+
       tempfile  = SD.open(Resolved_Path, FILE_READ);
+      TRACERP("SD.open tempfile reports %08X\n", (uint32_t)tempfile);
+
       directory_test = tempfile.isDirectory();
+      TRACERP("tempfile.isDirectory reports %s\n", directory_test ? "true":"false");
       tempfile.close();
+
       return directory_test;                          //  If it is a directory, return true
       break;
     case 1:
@@ -261,8 +315,6 @@ bool Resolve_Path(char *New_Path, uint8_t mode)
       break;
   }
 }
-
-
 
 ////////
 //////////
@@ -287,7 +339,7 @@ bool Resolve_Path(char *New_Path, uint8_t mode)
 ////////#define  AUX_USAGE_NFUNC         (258)      //  TESTNUMFUN(varN)                                  Numeric function with 1 numeric arg
 ////////#define  AUX_USAGE_SFUNC         (259)      //  TESTSTRFUN$(var$)                                 String function with 1 string arg
 ////////
-////////#define  TRACE_TESTNUMFUN          (0)      //  Output logging info to Serial 
+////////#define  TRACE_TESTNUMFUN          (0)      //  Output logging info to Serial
 ////////
 ////////
 //////////      These apparent Keywords don't have assigned Usage codes
@@ -318,7 +370,7 @@ bool Resolve_Path(char *New_Path, uint8_t mode)
 //////////                    CMDCSUM         AUXINP(5,0,0,"")                    - return results of AUXROM checksums
 //////////                                                                          Test: DISP AUXINP (5,0,0,"")      Result: 0    (if ok)
 //////////
-////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////// 
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 ////////
 ////////
 //////////
@@ -353,7 +405,7 @@ bool Resolve_Path(char *New_Path, uint8_t mode)
 ////////  }
 ////////  //my_R12 = AUXROM_RAM_Window.as_struct.AR_R12_copy;
 ////////
-////////  //LOGPRINTF_AUX("AUXROM Function called. Expected Mailbox 0, Got Mailbox # %d\n", Mailbox_to_be_processed);  
+////////  //LOGPRINTF_AUX("AUXROM Function called. Expected Mailbox 0, Got Mailbox # %d\n", Mailbox_to_be_processed);
 ////////  //LOGPRINTF_AUX("AUXROM Got Usage %d\n", AUXROM_RAM_Window.as_struct.AR_Usages[Mailbox_to_be_processed]);
 ////////  //LOGPRINTF_AUX("R12, got %06o\n", my_R12);
 ////////  //Serial.printf("Showing 16 bytes prior to R12 address\n");
@@ -438,7 +490,7 @@ bool Resolve_Path(char *New_Path, uint8_t mode)
 ////////      //  From email with Everett, 8/9/2020 @ 11:33
 ////////      //
 ////////      //  AUX1STRREF A$
-////////      //  a) When AUX1STRREF runtime gets called, leave the string reference 
+////////      //  a) When AUX1STRREF runtime gets called, leave the string reference
 ////////      //    on the stack, write the R12 value to A.MBR12.
 ////////      //  b) Send a message to EBTKS:
 ////////      //      Write "TEST" to BUF0
@@ -721,7 +773,7 @@ bool Resolve_Path(char *New_Path, uint8_t mode)
 //////////
 //////////  Examples of how HP85 numbers are encoded
 //////////                  0                           1                          -1
-//////////    00 00 00 00 FF 00 00 00     00 00 00 00 FF 01 00 00     00 00 00 00 FF 99 99 99     
+//////////    00 00 00 00 FF 00 00 00     00 00 00 00 FF 01 00 00     00 00 00 00 FF 99 99 99
 //////////
 //////////                10                         100                        1000
 //////////    00 00 00 00 FF 10 00 00     00 00 00 00 FF 00 01 00     00 00 00 00 FF 00 10 00

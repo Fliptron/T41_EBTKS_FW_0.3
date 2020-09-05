@@ -9,9 +9,9 @@
 
 #include "USBHost_t36.h"
 //##DISABLED##//#include "cpm_emu.h"
-#include "Adafruit_GFX.h"
-#include "Adafruit_SSD1306.h"
-#include "EBTKS_Term85.h"
+//#include "Adafruit_GFX.h"
+//#include "Adafruit_SSD1306.h"
+//#include "EBTKS_Term85.h"
 
 
 

@@ -101,25 +101,19 @@ void AUXROM_Poll(void)
   LOGPRINTF_AUX("AUXROM Function called. Got Mailbox # %d\n", Mailbox_to_be_processed);
   LOGPRINTF_AUX("AUXROM Got Usage %d\n", AUXROM_RAM_Window.as_struct.AR_Usages[Mailbox_to_be_processed]);
   LOGPRINTF_AUX("R12, got %06o\n", my_R12);
-  Serial.printf("Showing 16 bytes prior to R12 address\n");
-  HexDump_HP85_mem(my_R12 - 16, 16, true, true);
-  Serial.flush();
-  delay(500);
+  //Serial.printf("Showing 16 bytes prior to R12 address\n");
+  //HexDump_HP85_mem(my_R12 - 16, 16, true, true);
+  //Serial.flush();
+  //delay(500);
 
   switch(AUXROM_RAM_Window.as_struct.AR_Usages[Mailbox_to_be_processed])
   {
-
     case AUX_USAGE_WROM:                      ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////  AUX_USAGE_WROM
       break;
     case AUX_USAGE_SDCD:                      ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////  AUX_USAGE_SDCD
-      Serial.printf("Found SDCD\n");
-      show_mailboxes_and_usage();
-      //AUXROM_SDCD();
-      AUXROM_RAM_Window.as_struct.AR_Usages[Mailbox_to_be_processed] = 0;     //  Success
-      //AUXROM_RAM_Window.as_struct.AR_Mailboxes[6] = 0;                        //  Release mailbox 6
-
-
-
+      //Serial.printf("Found SDCD\n");
+      //show_mailboxes_and_usage();
+      AUXROM_SDCD();
       break;
     case AUX_USAGE_SDCUR:                      ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////  AUX_USAGE_SDCUR
       break;
@@ -306,7 +300,7 @@ void AUXROM_Poll(void)
   }
 
   new_AUXROM_Alert = false;
-  show_mailboxes_and_usage();
+  //show_mailboxes_and_usage();
   AUXROM_RAM_Window.as_struct.AR_Mailboxes[Mailbox_to_be_processed] = 0;      //  Relinquish control of the mailbox
 
 }
