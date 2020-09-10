@@ -7,7 +7,7 @@
 
 #include "Inc_Common_Headers.h"
 
-//  #include "SD.h"         included by EBTKS_Function_Declarations.h
+//  #include "SdFat.h"         included by EBTKS_Function_Declarations.h
 
 static File logfile;
 

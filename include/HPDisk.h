@@ -46,7 +46,7 @@ class HPDisk
 
         static constexpr int SECTOR_SIZE = 256;
 
-        HPDisk(DISK_TYPE typeName, SDClass *sd)
+        HPDisk(DISK_TYPE typeName, SdFat *sd)
             {
             _sd = sd;
             _error = false;
@@ -367,7 +367,7 @@ class HPDisk
         int _currSector;
         int _lba;
 
-        SDClass *_sd;
+        SdFat *_sd;
         File _diskFile;
         bool _error;
         bool _loaded;

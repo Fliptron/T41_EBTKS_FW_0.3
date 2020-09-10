@@ -90,14 +90,14 @@ void AUXROM_Poll(void)
   double      param_1_val;
   int         string_len;
   uint32_t    string_addr;
-  uint32_t    my_R12;
+  //uint32_t    my_R12;
 
   if(!new_AUXROM_Alert)
   {
     return;
   }
 
-  my_R12 = AUXROM_RAM_Window.as_struct.AR_R12_copy;
+  //my_R12 = AUXROM_RAM_Window.as_struct.AR_R12_copy;
   LOGPRINTF_AUX("AUXROM Function called. Got Mailbox # %d\n", Mailbox_to_be_processed);
   LOGPRINTF_AUX("AUXROM Got Usage %d\n", AUXROM_RAM_Window.as_struct.AR_Usages[Mailbox_to_be_processed]);
   LOGPRINTF_AUX("R12, got %06o\n", my_R12);
@@ -319,6 +319,11 @@ void AUXROM_Poll(void)
 //  The expediant (and slower and less bug prone) is just transfer 1 byte at
 //  a time and do a test for each. Doing this for now.
 //
+//  #################  does not handle ROMs that EBTKS provides
+//  #################  does not handle RAM window in EBTKS ROMs
+//
+
+
 
 void AUXROM_Fetch_Memory(uint8_t * dest, uint32_t src_addr, uint16_t num_bytes)
 {

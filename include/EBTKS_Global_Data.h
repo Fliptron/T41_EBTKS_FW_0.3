@@ -209,6 +209,10 @@ EXTERN  volatile uint32_t  Logic_Analyzer_sample;
 
 EXTERN  Tape tape;
 
+EXTERN  SdFat SD;
+
+EXTERN  Print_Splitter PS;
+
 ///////////////////////////////////////////////////  Initialized Globals.  /////////////////////////////////////////////////////////////////
 
 //   Initialized Globals can't use EXTERN (as used above) because initialization over-rides extern

@@ -143,14 +143,17 @@ inline void onPhi_1_Rise(void)                  //  This function is running wit
     //  Once triggered, count down till we have collected al post-trigger samples
     //
 
-    if((Logic_Analyzer_Valid_Samples >= Logic_Analyzer_Pre_Trigger_Samples) && !Logic_Analyzer_Triggered)
-    { //  Triggering is allowed
-      if((Logic_Analyzer_sample & Logic_Analyzer_Trigger_Mask) == Logic_Analyzer_Trigger_Value)
-      {   //  Trigger pattern has been matched
-        if(--Logic_Analyzer_Event_Count <= 0)                             //  Event Count is how many match events needed to trigger
-        {
-          Logic_Analyzer_Triggered = true;
-          Logic_Analyzer_Index_of_Trigger = Logic_Analyzer_Channel_A_index;   //  Record the buffer index at time of trigger
+    if(!Logic_Analyzer_Triggered)
+    {
+      if(Logic_Analyzer_Valid_Samples >= Logic_Analyzer_Pre_Trigger_Samples)
+      { //  Triggering is allowed
+        if((Logic_Analyzer_sample & Logic_Analyzer_Trigger_Mask) == Logic_Analyzer_Trigger_Value)
+        {   //  Trigger pattern has been matched
+          if(--Logic_Analyzer_Event_Count <= 0)                             //  Event Count is how many match events needed to trigger
+          {
+            Logic_Analyzer_Triggered = true;
+            Logic_Analyzer_Index_of_Trigger = Logic_Analyzer_Channel_A_index;   //  Record the buffer index at time of trigger
+          }
         }
       }
     }
@@ -281,7 +284,6 @@ inline void onPhi_2_Rise(void)                                  //  This functio
   {
     if (interruptReq == true)
     {
-      TOGGLE_LED;
       readData = interruptVector;      
       interruptReq = false; //clear request
       RELEASE_INT;

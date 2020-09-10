@@ -294,7 +294,7 @@ bool loadConfiguration(const char *filename, Config &config)
   LOGPRINTF("Tape file: %s%s enabled is: %s\n", path, tapeFname, tapeEmu ? "Active" : "Inactive");  
   
 
-  TXD_Pulser(1);                                                                  //  From beginning of function to here is 1.28 ms
+  TXD_Pulser(1);                                                                  //  From beginning of function to here is 23 ms
   EBTKS_delay_ns(10000);    //  10 us
   TXD_Pulser(1);
   EBTKS_delay_ns(10000);    //  10 us

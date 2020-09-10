@@ -1,5 +1,6 @@
 #include <Arduino.h>
 #include <setjmp.h>
+#include "SdFat.h"
 
 //  The next line must exist in just one compilation unit, which is this file.
 //  All other usage of the globals file msut not have this line, leaving ALLOCATE undefined
@@ -12,8 +13,6 @@
 //#include "Adafruit_GFX.h"
 //#include "Adafruit_SSD1306.h"
 //#include "EBTKS_Term85.h"
-
-
 
 //##DISABLED##//#define NUM_CPM_DISK 4 //number of emulated cp/m disk drives
 //##DISABLED##//File dfile[NUM_CPM_DISK]; // file pointers for the kaypro4 disk images
@@ -646,13 +645,16 @@ void setup()
   //  Use CONFIG.TXT file on sd card for configuration
 
   Serial.printf("Doing SD.begin\n");
-  if (!SD.begin(BUILTIN_SDCARD))          //  This takes about 85 ms.
+  TXD_Pulser(2);  SET_TXD;
+  if (!SD.begin(SdioConfig(FIFO_SDIO)))          //  This takes about 115 ms.
   {
+    CLEAR_TXD; EBTKS_delay_ns(1000);  TXD_Pulser(2);
     Serial.println("SD begin failed");
     logfile_active = false;
   }
   else
   {
+    CLEAR_TXD; EBTKS_delay_ns(1000);  TXD_Pulser(2);
     logfile_active = open_logfile();
   }
   Serial.printf("logfile_active is %d\n", logfile_active);
@@ -664,13 +666,17 @@ void setup()
   LOGPRINTF("Loading configuration...\n");
   flush_logfile();
 
+  initialize_Current_Path();      //  Used by the AUXROM functions
+
   // init devices before we load the configuration
 
-  initTranslator(); //init hpib/disk code
+  initTranslator();           //  Init hpib/disk code
 
-  config_success = loadConfiguration(Config_filename, config);  // with 8 ROMs being loaded and JSON parsing of CONFIG.TXT , 56 ms
+                              //  It took 74 ms to get to here from SD.begin (open logfile, send some stuff, Init HPIB/Disk)
+                              //  With 9 ROMs being loaded and JSON parsing of CONFIG.TXT , loadConfiguration()  takes 108ms
+  config_success = loadConfiguration(Config_filename, config);
 
-  setupPinChange();         //  Set up the two critical interrupt handlers on Pin Change (rising) on Phi 1 and Phi 2
+  setupPinChange();           //  Set up the two critical interrupt handlers on Pin Change (rising) on Phi 1 and Phi 2
 
 //  SET_RXD;                  //  RXD normally indicates we are in the ISR. But during PWO testing, this will show the startup
 //                            //  race between Teensy and the HP-85
@@ -733,7 +739,7 @@ void setup()
 
   delay(10);                                //  Wait 10 ms before falling into loop()  This might be BAD. What if a device op occurs while we are waiting?
                                             //  Seems there are some issues of loop functions interfering with the Service ROM initial sanity check,
-                                            //  Specifically the call to test_for_three_shift_clicks() which does DMA every 10 ms
+                                            //  Specifically the call to Three_Shift_Clicks_Poll() which does DMA every 10 ms
 
   //
   //  We won't get to this point in the code if the HP-85 is not running with valid clocks and PWO
@@ -769,7 +775,7 @@ static int  loop_count = 0;
 
 void loop()
 {
-  if(IS_PWO_LOW)
+  if(IS_PWO_LOW)                    //  Not sure if this works. Needed to be tested
   {
     longjmp(PWO_While_Running, 99);
   }
@@ -805,23 +811,27 @@ void loop()
                             // then add graphics. detect writes to, say a 64x64 bit area, and only send that area
                             // to speed things up
  */
-  //##DISABLED##//if (! isCpmEnabled())
-  //##DISABLED##//{
-	Serial_Command_Poll();
-  //##DISABLED##//}
 
+
+	Serial_Command_Poll();
   tape.poll();
   AUXROM_Poll();
+  Logic_Analyzer_Poll();
+  loopTranslator();     //  1MB5 / HPIB / DISK poll
+  myusb.Task();
 
 #if ENABLE_THREE_SHIFT_DETECTION
-  if(test_for_three_shift_clicks())
+  if(Three_Shift_Clicks_Poll())
   {
     Serial.printf("Got 3 shift clicks\n");
   }
 #endif          //  ENABLE_THREE_SHIFT_DETECTION
 
-  loopTranslator();     //  1MB5 / HPIB / DISK poll
-  myusb.Task();
+
+  loop_count++;
+}
+
+
 
   //##DISABLED##//static uint32_t seconds = 0;
   //##DISABLED##//static uint32_t delaySeconds = 30;
@@ -856,10 +866,7 @@ void loop()
   
   //##DISABLED##//lisp_do_repl();
   //##DISABLED##//cpm_loop();
-  loop_count++;
-}
-
-
+  
 //##DISABLED##//// for the cp/m emulation
 //##DISABLED##//
 //##DISABLED##//int ext_inkey(void)

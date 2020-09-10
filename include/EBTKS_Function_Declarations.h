@@ -118,12 +118,13 @@ double cvt_HP85_real_to_IEEE_double(uint8_t number[]);
 int32_t cvt_R12_int_to_int32(uint8_t number[]);
 //void cvt_int32_to_HP85_tagged_integer(uint8_t * dest, int val);
 void cvt_IEEE_double_to_HP85_number(uint8_t * dest, double val);
-bool Resolve_Path(char *New_Path, uint8_t mode);
+bool Resolve_Path(char *New_Path);
 
 //
 //  AUXROM Functions/Keywords/Statements
 //
 
+void initialize_Current_Path(void);
 void AUXROM_SDCD(void);
 
 
@@ -149,13 +150,14 @@ void show_mailboxes_and_usage(void);
 
 void Setup_Logic_Analyzer(void);
 void Logic_analyzer_go(void);
+void Logic_Analyzer_Poll(void);
 
 void Simple_Graphics_Test(void);
 
 bool is_HP85_idle(void);
 
 #if ENABLE_THREE_SHIFT_DETECTION
-bool test_for_three_shift_clicks(void);
+bool Three_Shift_Clicks_Poll(void);
 #endif
 
 //

@@ -280,7 +280,7 @@ bool Tape::setFile(const char *fname)
   strcpy(temptext,_pathname);
   strcat(temptext, fname);
 
-  _tapeFile = SD.open(temptext, (O_READ | O_WRITE));
+  _tapeFile = SD.open(temptext, (O_RDWR));
   if (!_tapeFile)
   {
     Serial.printf("Tape file did not open: %s\n", temptext);
