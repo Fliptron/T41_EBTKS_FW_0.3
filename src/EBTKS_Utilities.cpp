@@ -234,68 +234,75 @@ bool wait_for_serial_string(void)
 
 
 /////////////////////////////////////////////  disabled while we try Everett's idea on HP85 Lockout during serial I/O
-//void get_serial_string_poll(void)
-//{
-//  char  current_char;
-//
-//  if(serial_string_available)
-//  {
-//    LOGPRINTF("Error: get_serial_string_poll() called, but serial_string_available is true\n");
-//    Ctrl_C_seen = true;     //  Not really a Ctrl-C , but treat it this way to error out of whatever is calling this
-//    return;
-//  }
-//
-//  if(!Serial.available()) return;       //  No new characters available
-//
-//  while(1)    //  Got at least 1 new character
-//  {
-//    //  Serial.printf("\nget_serial_string diag: available chars %2d  current string length %2d  current string [%s]\n%s", Serial.available(), serial_string_length, serial_string, serial_string);
-//    //  Serial.printf("[%02X]",current_char );    //  Use this to see what scan codes (as seen by VSCode) or escape sequences as seen by SecureCRT for special PC keys.
-//    current_char = Serial.read();
-//    switch(current_char)
-//    {
-//    //
-//    //  These characters are valid, even if the buffer is full
-//    //
-//      case '\n':    //  New Line (CTRL-J). Just throw it away
-//        break;
-//      case '\r':    //  Cariage return is end of string
-//        serial_string[serial_string_length] = '\0';         //  This should already be true, but do it to be extra safe
-//        Serial.printf("\n");
-//        serial_string_available = true;                     //  Return the string, do not include \r or \n characters.
-//        while(Serial.read() >= 0){};                        //  Remove any remaining characters in the serial channel. This will kill type-ahead, which might not be a good idea
-//        return;
-//        break;
-//      case '\b':                                            //  Backspace. If the string (so far) is not empty, delete the last character, otherwise ignore
-//        if (serial_string_length > 0)
-//        {
-//          serial_string_length--;
-//          serial_string[serial_string_length] = '\0';
-//          Serial.printf("\b \b");                           //  Backspace , Space , Backspace
-//        }
-//        break;
-//      case '\x03':                                          //  Ctrl-C.  Flush any current string. This fails with the VSCode terminal because it kils the terminal
-//        serial_string_length    = 0;
-//        Serial.printf("  ^C\n");
-//        Ctrl_C_seen = true;
-//        break;
-//      case '\x14':                                          //  Ctrl-T.  Show the current incomplete command
-//        serial_string[serial_string_length] = '\0';
-//        Serial.printf("\n%s", serial_string);
-//        break;
-//      default:                                              //  If buffer is full, the characteris ignored
-//        if(serial_string_length >= SERIAL_STRING_MAX_LENGTH)
-//        {
-//          break;    //  Ignore character, no room for it
-//        }
-//        serial_string[serial_string_length++] = current_char;
-//        serial_string[serial_string_length] = '\0';
-//        Serial.printf("%c", current_char);
-//    }
-//  if(!Serial.available()) return;                           //  No new characters available
-//  }
-//}
 
+#define USE_ORIGINAL_POLL           (1)
+
+#if USE_ORIGINAL_POLL
+
+void get_serial_string_poll(void)
+{
+  char  current_char;
+
+  if(serial_string_available)
+  {
+    LOGPRINTF("Error: get_serial_string_poll() called, but serial_string_available is true\n");
+    Ctrl_C_seen = true;     //  Not really a Ctrl-C , but treat it this way to error out of whatever is calling this
+    return;
+  }
+
+  if(!Serial.available()) return;       //  No new characters available
+
+  while(1)    //  Got at least 1 new character
+  {
+    //  Serial.printf("\nget_serial_string diag: available chars %2d  current string length %2d  current string [%s]\n%s", Serial.available(), serial_string_length, serial_string, serial_string);
+    //  Serial.printf("[%02X]",current_char );    //  Use this to see what scan codes (as seen by VSCode) or escape sequences as seen by SecureCRT for special PC keys.
+    current_char = Serial.read();
+    switch(current_char)
+    {
+    //
+    //  These characters are valid, even if the buffer is full
+    //
+      case '\n':    //  New Line (CTRL-J). Just throw it away
+        break;
+      case '\r':    //  Cariage return is end of string
+        serial_string[serial_string_length] = '\0';         //  This should already be true, but do it to be extra safe
+        Serial.printf("\n");
+        serial_string_available = true;                     //  Return the string, do not include \r or \n characters.
+        while(Serial.read() >= 0){};                        //  Remove any remaining characters in the serial channel. This will kill type-ahead, which might not be a good idea
+        return;
+        break;
+      case '\b':                                            //  Backspace. If the string (so far) is not empty, delete the last character, otherwise ignore
+        if (serial_string_length > 0)
+        {
+          serial_string_length--;
+          serial_string[serial_string_length] = '\0';
+          Serial.printf("\b \b");                           //  Backspace , Space , Backspace
+        }
+        break;
+      case '\x03':                                          //  Ctrl-C.  Flush any current string. This fails with the VSCode terminal because it kils the terminal
+        serial_string_length    = 0;
+        Serial.printf("  ^C\n");
+        Ctrl_C_seen = true;
+        break;
+      case '\x14':                                          //  Ctrl-T.  Show the current incomplete command
+        serial_string[serial_string_length] = '\0';
+        Serial.printf("\n%s", serial_string);
+        break;
+      default:                                              //  If buffer is full, the characteris ignored
+        if(serial_string_length >= SERIAL_STRING_MAX_LENGTH)
+        {
+          break;    //  Ignore character, no room for it
+        }
+        serial_string[serial_string_length++] = current_char;
+        serial_string[serial_string_length] = '\0';
+        Serial.printf("%c", current_char);
+    }
+  if(!Serial.available()) return;                           //  No new characters available
+  }
+}
+
+
+#else
 
 //  Try Everett's idea oh HP85 Lockout during serial I/O
 
@@ -389,6 +396,8 @@ void get_serial_string_poll(void)
   while(!Serial.available()) {};                            //  Wait for more characters. Need ^C or \r
   }
 }
+
+#endif
 
 void serial_string_used(void)
 {
@@ -752,60 +761,57 @@ void help_7(void)
   Serial.printf("\n");
 }
 
-File dir;
-File dir_entry;
-uint8_t dir_flags;
-uint8_t dir_indent;
 
-bool LineAtATime_ls_Init(const char* path, uint8_t flags, uint8_t indent)
-{
-  dir_flags  = flags;
-  dir_indent = indent;
-  if(dir)
-  {
-    dir.close();
-  }
-  return dir.open(path, O_RDONLY);
-}
+//bool LineAtATime_ls_Init(const char* path, uint8_t flags, uint8_t indent)
+//{
+//  dir_flags  = flags;
+//  dir_indent = indent;
+//  if(dir)
+//  {
+//    dir.close();
+//  }
+//  return dir.open(path, O_RDONLY);
+//}
 
-bool LineAtATime_ls_Next()
-{
-  File file;
 
-  PS.flush();
-  if(file.openNext(&dir, O_RDONLY))
-  {
-    // indent for dir level
-    if (!file.isHidden() || (dir_flags & LS_A))
-    {
-      for (uint8_t i = 0; i < dir_indent; i++)
-      {
-        PS.write(' ');
-      }
-      if (dir_flags & LS_DATE) {
-        file.printModifyDateTime(&PS);
-        PS.write(' ');
-      }
-      if (dir_flags & LS_SIZE) {
-        file.printFileSize(&PS);
-        PS.write(' ');
-      }
-      file.printName(&PS);
-      if (file.isDir()) {
-        PS.write('/');
-      }
-      PS.write('\n');
-      if ((dir_flags & LS_R) && file.isDir()) {
-        file.ls(&PS, dir_flags, dir_indent + 2);
-      }
-      Serial.printf("XXXXX");
-    }
-    file.close();
-    return true;
-  }
-  dir.close();
-  return false;
-}
+//bool LineAtATime_ls_Next()
+//{
+//  File file;
+//
+//  PS.flush();
+//  if(file.openNext(&dir, O_RDONLY))
+//  {
+//    // indent for dir level
+//    if (!file.isHidden() || (dir_flags & LS_A))
+//    {
+//      for (uint8_t i = 0; i < dir_indent; i++)
+//      {
+//        PS.write(' ');
+//      }
+//      if (dir_flags & LS_DATE) {
+//        file.printModifyDateTime(&PS);
+//        PS.write(' ');
+//      }
+//      if (dir_flags & LS_SIZE) {
+//        file.printFileSize(&PS);
+//        PS.write(' ');
+//      }
+//      file.printName(&PS);
+//      if (file.isDir()) {
+//        PS.write('/');
+//      }
+//      PS.write('\n');
+//      if ((dir_flags & LS_R) && file.isDir()) {
+//        file.ls(&PS, dir_flags, dir_indent + 2);
+//      }
+//      Serial.printf("XXXXX");
+//    }
+//    file.close();
+//    return true;
+//  }
+//  dir.close();
+//  return false;
+//}
 
 void proc_tdir(void)
 {
@@ -819,10 +825,10 @@ void proc_ddir(void)
   //  SD.ls(PS, "/", LS_R | LS_SIZE | LS_DATE, 3);
   //File root = SD.open("/disks/");
   //printDirectory(root,0);
-  LineAtATime_ls_Init("/pathtest/", LS_R | LS_SIZE | LS_DATE, 3);
+  LineAtATime_ls_Init();
   while(LineAtATime_ls_Next())
   {
-    Serial.printf("                                    [%s]\n", PS.get_ptr());
+    //Serial.printf("%s    end of LineAtATime_ls_Next call %d\n", PS.get_ptr() , call_count++);
   }
 }
 
@@ -1130,6 +1136,7 @@ void ulisp(void)
   }
 #endif
 }
+
 
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////  Logic Analyzer (or maybe Code Trace utility)

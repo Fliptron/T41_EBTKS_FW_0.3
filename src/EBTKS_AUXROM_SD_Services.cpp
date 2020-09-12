@@ -67,30 +67,29 @@ void initialize_Current_Path(void)
 //  Mailbox 6 is used for the handshake
 //
 
-
 void AUXROM_SDCD(void)
 {
-  Serial.printf("Current Path before SDCD [%s]\n", Current_Path);
-  Serial.printf("Update Path via AUXROM   [%s]\n", AUXROM_RAM_Window.as_struct.AR_Buffer_6);
-  show_mailboxes_and_usage();
+  //  Serial.printf("Current Path before SDCD [%s]\n", Current_Path);
+  //  Serial.printf("Update Path via AUXROM   [%s]\n", AUXROM_RAM_Window.as_struct.AR_Buffer_6);
+  //  show_mailboxes_and_usage();
   do
   {
     if(Resolve_Path((char *)AUXROM_RAM_Window.as_struct.AR_Buffer_6))       //  Returns true if no parsing problems
     {
       if((file = SD.open(Resolved_Path)) == 0)
       {
-        Serial.printf("Failed SD.open return value %08X\n", (uint32_t)file);
+        Serial.printf("AUXROM_SDCD: Failed SD.open return value %08X\n", (uint32_t)file);
         break;                      //  Unable to open directory
       }
       if(!file.isDir())
       {
-        Serial.printf("Failed file.isDir\n");
+        Serial.printf("AUXROM_SDCD: Failed file.isDir\n");
         break;                      //  Valid path, but not a directory
       }
       file.close();
       if(!SD.chdir(Resolved_Path))
       {
-        Serial.printf("Failed SD.chdir\n");
+        Serial.printf("AUXROM_SDCD: Failed SD.chdir\n");
         break;                      //  Failed to change to new path
       }
       //
@@ -102,9 +101,9 @@ void AUXROM_SDCD(void)
         strlcat(Current_Path,"/", MAX_SD_PATH_LENGTH + 1);
       }
       AUXROM_RAM_Window.as_struct.AR_Usages[6] = 0;                         //  Indicate Success
-      Serial.printf("Success. Current Path is now [%s]\n", Current_Path);
-      show_mailboxes_and_usage();
-      Serial.printf("\nSetting Mailbox 6 to 0 and then returning\n");
+      //  Serial.printf("Success. Current Path is now [%s]\n", Current_Path);
+      //  show_mailboxes_and_usage();
+      //  Serial.printf("\nSetting Mailbox 6 to 0 and then returning\n");
       AUXROM_RAM_Window.as_struct.AR_Mailboxes[6] = 0;                      //  Release mailbox 6.    Must always be the last thing we do
       return;
     }
@@ -112,12 +111,29 @@ void AUXROM_SDCD(void)
   //
   //  Something went wrong. 
   //
-  Serial.printf("Resolve_Path had a problem. Failure to update Current Path\n");
+  Serial.printf("AUXROM_SDCD: Resolve_Path had a problem. Failure to update Current Path\n");
   AUXROM_RAM_Window.as_struct.AR_Usages[6] = 213;                           //  Indicate Failure
-  show_mailboxes_and_usage();
+  //  show_mailboxes_and_usage();
   AUXROM_RAM_Window.as_struct.AR_Mailboxes[6] = 0;                          //  Release mailbox 6.    Must always be the last thing we do
   return;
 }
+
+//
+//  Return in the designated buffer the current path and its length
+//
+
+void AUXROM_SDCUR(void)
+{
+  uint16_t    copy_length;
+  copy_length = strlcpy((char *)(&AUXROM_RAM_Window.as_struct.AR_Buffer_0[Mailbox_to_be_processed*256]), Current_Path, 256);
+  AUXROM_RAM_Window.as_struct.AR_Lengths[Mailbox_to_be_processed] = copy_length;
+  AUXROM_RAM_Window.as_struct.AR_Usages[Mailbox_to_be_processed] = 0;                         //  Indicate Success
+  show_mailboxes_and_usage();
+  AUXROM_RAM_Window.as_struct.AR_Mailboxes[Mailbox_to_be_processed] = 0;                      //  Release mailbox.    Must always be the last thing we do
+}
+
+
+
 
 //
 //  This function takes New_Path and appends it to Current_Path (if it is a relative path) and
@@ -247,6 +263,66 @@ bool Resolve_Path(char *New_Path)
   Resolved_Path_ends_with_slash = (dest_ptr[-1] == '/');
   return true;
 }
+
+File dir;
+File dir_entry;
+uint8_t dir_flags;
+uint8_t dir_indent;
+uint32_t    Listing_Buffer_Index;
+
+//
+//  Do a directory listing of the Current Working Directory
+//  The text buffer is 65536 bytes, so with a line limit of 32 characters per line,
+//  this would allow for 2048 lines. If directory listing exceeds 64K characters,
+//  we just truncate the listing. The user should split the directory into mutiple
+//  separate directories. Sorry. Also, we just do 1 level. If a recursive directory
+//  is desired, then the user must implement walking the directory tree in BASIC
+//  code.
+//
+//  Returns true if the directory was opened successfuly. There might not be any
+//  listing text, if the directory has no files or sub directories.
+//
+
+bool LineAtATime_ls_Init(void)
+{
+  Listing_Buffer_Index  = 0;
+  
+  if(dir)
+  {
+    dir.close();
+  }
+
+  if(!dir.open(Current_Path, O_RDONLY))
+  {
+    return false;
+  }
+
+  PS.init(Directory_Listing_Buffer, DIRECTORY_LISTING_BUFFER_SIZE);
+  dir.ls(&PS, LS_SIZE | LS_DATE, 0);    //  No indent needed (3rd parameter) because we are no doing a recursive listing
+  return true;
+}
+
+
+bool LineAtATime_ls_Next()
+{
+  int32_t   get_line_char_count;
+  char      dir_line[65];               //  Leave room for a trailing 0x00 (that is not included in the passed max length of PS.get_line)
+
+  get_line_char_count = PS.get_line(dir_line, 64);
+
+  if(get_line_char_count >= 0)
+  {
+    Serial.printf("%s\n", dir_line);
+    return true;
+  }
+  //
+  //  Must be negative, so no more lines
+  //
+  return false;
+}
+
+
+
 
 ////////
 //////////

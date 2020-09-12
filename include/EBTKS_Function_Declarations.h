@@ -81,7 +81,8 @@ void release_DMA_request(void);
 inline void onPhi_1_Rise(void);
 inline void onWriteData(uint16_t addr, uint8_t data) __attribute__((always_inline, unused));
 inline void onPhi_1_Fall(void);
-FASTRUN void pinChange_isr(void);
+FASTRUN void pinChange_isr(void)   __attribute__ ((interrupt ("IRQ")));     //  Apparently this is needed 10/12/2020
+//FASTRUN void pinChange_isr(void);
 void setupPinChange(void);
 void mySystick_isr(void);
 
@@ -94,6 +95,9 @@ void saveConfiguration(const char *filename, const Config &config);
 bool loadConfiguration(const char *filename, Config &config);
 void printDirectory(File dir, int numTabs);
 void no_SD_card_message(void);
+
+bool LineAtATime_ls_Init(void);
+bool LineAtATime_ls_Next(void);
 
 //
 //  Log File support
@@ -126,7 +130,7 @@ bool Resolve_Path(char *New_Path);
 
 void initialize_Current_Path(void);
 void AUXROM_SDCD(void);
-
+void AUXROM_SDCUR(void);
 
 
 //

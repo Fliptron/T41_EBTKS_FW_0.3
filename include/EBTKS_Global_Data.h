@@ -213,6 +213,10 @@ EXTERN  SdFat SD;
 
 EXTERN  Print_Splitter PS;
 
+EXTERN EXTMEM char Directory_Listing_Buffer[DIRECTORY_LISTING_BUFFER_SIZE];     //  Normally this should be inside the Class as private, but I don't
+                                                                                //  know if the EXTMEM can be done within a class, and we certainly
+                                                                                //  don't want this buffer to be dynamically allocated on heap either.
+
 ///////////////////////////////////////////////////  Initialized Globals.  /////////////////////////////////////////////////////////////////
 
 //   Initialized Globals can't use EXTERN (as used above) because initialization over-rides extern

@@ -55,7 +55,7 @@
 //  based on timing analysis of reverse engineering work
 //
 
-FASTRUN void pinChange_isr(void)        //  This function is an ISR, keep it short and fast.
+FASTRUN void pinChange_isr(void)      //  This function is an ISR, keep it short and fast.
 {
 
   uint32_t interrupts;
@@ -334,7 +334,7 @@ inline void onPhi_2_Rise(void)                                  //  This functio
     GPIO_DR_SET_DB0   = dataBus;          //  Put data on the bus. This is the central point for ALL I/O and Memory reads that this board supports
 
     ENABLE_BUS_BUFFER_U2; // !OE low.
-    }
+  }
 
   //
   //  DMA is asserted 200 ns after the falling edge of Phi 2
