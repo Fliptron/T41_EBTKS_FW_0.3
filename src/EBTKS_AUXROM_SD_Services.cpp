@@ -71,7 +71,7 @@ void initialize_Current_Path(void)
 void AUXROM_WROM(void)
 {
   uint8_t     target_rom      = AUXROM_RAM_Window.as_struct.AR_BUF0_OPTS[0];
-  uint16_t    target_address  = AUXROM_RAM_Window.as_struct_a.AR_BUF0_OPTS[1];     //  address is in the range 060000 to 0100000
+  uint16_t    target_address  = AUXROM_RAM_Window.as_struct_a.AR_BUF0_OPTS[1];                      //  address is in the range 060000 to 0100000
                                                                                                     //  NOTE: This uses as_struct_a to avoid a compiler warning. See EBTKS_Global_Data.h
   uint16_t    transfer_length = AUXROM_RAM_Window.as_struct.AR_Lengths[0];
   uint8_t   * data_ptr        = &AUXROM_RAM_Window.as_struct.AR_Buffer_0[0];
@@ -79,7 +79,7 @@ void AUXROM_WROM(void)
 
   Serial.printf("Target ROM ID(oct):     %03O\n", target_rom);
   Serial.printf("Target Address(oct): %06O\n", target_address);
-  Serial.printf("Bytes to write(dec):   %d\n", transfer_length);
+  Serial.printf("Bytes to write(dec):     %d\n", transfer_length);
 
   if(romMap[target_rom] == NULL)            //  romMap is a table of 256 pointers to locations in EBTKS's address space. i.e. 32 bit pointers. Either NULL, or an address. The index is the ROM ID
   {
