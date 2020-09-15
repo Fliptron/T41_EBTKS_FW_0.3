@@ -1,7 +1,7 @@
 //
 //  08/08/2020  These Function implement all of the AUXROM functions
 //
-//  09/11/2020  PMF.  Implemented SDCD, SDCUR$, 
+//  09/11/2020  PMF.  Implemented SDCD, SDCUR$,
 //
 
 #include <Arduino.h>
@@ -16,7 +16,7 @@
 //  USAGE Codes from the AUXROMs
 //
                                             //  BASIC Keyword
-#define  AUX_USAGE_WROM          (  1)      //  none                                              Write buffer to AUXROM#/ADDR, re-checksum
+#define  AUX_USAGE_WROM          (  1)      //  none                                              Write buffer to AUXROM#/ADDR
 #define  AUX_USAGE_SDCD          (  2)      //  SDCD path$                                        Change the current SD directory
 #define  AUX_USAGE_SDCUR         (  3)      //  SDCUR$                                            Return the current SD directory
 #define  AUX_USAGE_SDCAT         (  4)      //  SDCAT [dst$Var, dstSizeVar, dstAttrVar, 0 | 1]    Get a directory listing entry for the current SD path (A.BOPT60=0 for "find first", =1 for "find next")
@@ -29,6 +29,12 @@
 #define  AUX_USAGE_SDDEL         ( 11)      //  SDDEL fileSpec$                                   Check if mounted disk/tape & error, else delete the file
 #define  AUX_USAGE_SDMKDIR       ( 12)      //  SDMKDIR folderName$                               Make a folder (only one level at a time, or error)
 #define  AUX_USAGE_SDRMDIR       ( 13)      //  SDRMDIR folderName$                               Remove a folder (error if not empty)
+#define  AUX_USAGE_SPF           ( 14)      //  SPF                                               sprintf()
+#define  AUX_USAGE_MOUNT         ( 15)      //  MOUNT                                             mount a disk/tape in a unit
+#define  AUX_USAGE_UNMNT         ( 16)      //  UNMNT                                             remove a disk/tape from a unit
+#define  AUX_USAGE_FLAGS         ( 17)      //  FLAGS                                             save A.FLAGS to config file
+//#define  AUX_USAGE_RDSTR         ( 18)      //  RDSTR                                             read a LF or CR/LF terminated string from an SD file
+
 
 //  These were used to debug passing parameters from HP85 to EBTKS, and converting numbers. Decommissioned, but retained for reference
 //
@@ -84,7 +90,24 @@ void ioWriteAuxROM_Alert(uint8_t val)                 //  This function is runni
   Mailbox_to_be_processed = val;
 }
 
+//
+// emulated registers - note these run under the interrupt context - keep them short n sweet!
+//
+//  Return the identification string, 1 character per call
+//
 
+static char         identification_string[] = "EBTKS V2.0  2020 (C) Philip Freidin, Russell Bull, Everett Kaser";
+static int          ident_string_index = 0;
+
+bool onReadAuxROM_Alert(void)
+{
+  readData = identification_string[ident_string_index++];
+  if(!readData)
+  {
+    ident_string_index = 0;
+  }
+  return true;
+}
 
 void AUXROM_Poll(void)
 {
@@ -113,6 +136,7 @@ void AUXROM_Poll(void)
   switch(AUXROM_RAM_Window.as_struct.AR_Usages[Mailbox_to_be_processed])
   {
     case AUX_USAGE_WROM:                      ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////  AUX_USAGE_WROM
+      AUXROM_WROM();
       break;
     case AUX_USAGE_SDCD:                      ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////  AUX_USAGE_SDCD
       //Serial.printf("Found SDCD\n");

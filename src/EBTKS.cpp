@@ -587,7 +587,7 @@ void setup()
   ioWriteFuncs[6]    = &ioWriteCrtCtrl;
   ioWriteFuncs[7]    = &ioWriteCrtDat;
   ioWriteFuncs[0x18] = &ioWriteRSELEC;          // rom select register for banked roms
-  ioWriteFuncs[0340] = &ioWriteAuxROM_Alert;    // AUXROM Alert that a Mailbox/Buffer has been updated
+  ioWriteFuncs[0340] = &ioWriteAuxROM_Alert;    // AUXROM Alert that a Mailbox/Buffer has been updated. Named HEYEBTKS
 
 //setup the tape emulation
 
@@ -601,6 +601,8 @@ void setup()
   ioWriteFuncs[0x59] = &onWriteOb;
   ioWriteFuncs[0x40] = &onWriteInterrupt;
   ioReadFuncs[0x40]  = &onReadInterrupt;
+  ioReadFuncs[0340]  = &onReadAuxROM_Alert;    // Use HEYEBTKS to return identification string
+
 
 
   myusb.begin();

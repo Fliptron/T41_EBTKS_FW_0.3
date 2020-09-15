@@ -115,6 +115,7 @@ void clean_logfile(void);
 //
 
 void ioWriteAuxROM_Alert(uint8_t val);
+bool onReadAuxROM_Alert(void);
 void AUXROM_Poll(void);
 void AUXROM_Fetch_Memory(uint8_t * dest, uint32_t src_addr, uint16_t num_bytes);
 void AUXROM_Fetch_Parameters(void * Parameter_Block_XXX , uint16_t num_bytes);
@@ -129,6 +130,7 @@ bool Resolve_Path(char *New_Path);
 //
 
 void initialize_Current_Path(void);
+void AUXROM_WROM(void);
 void AUXROM_SDCD(void);
 void AUXROM_SDCUR(void);
 

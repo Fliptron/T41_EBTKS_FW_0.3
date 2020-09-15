@@ -60,6 +60,52 @@ void initialize_Current_Path(void)
 }
 
 //
+//  WROM overwrites AUXROMs. This is quite dangerous, so be careful
+//
+//  WROM COMMAND: FOR THE E.WROM COMMAND: A.BOPT00 = TARGET ROM#, A.BOPT01 = 0, A.BOPT02-03 = TARGET ADDRESS
+//
+//  Always uses Buffer 0 and associated usage locations etc.
+//
+//  Target ROM must be between 0361 and 0376 (241 to 254)
+
+void AUXROM_WROM(void)
+{
+  uint8_t     target_rom      = AUXROM_RAM_Window.as_struct.AR_BUF0_OPTS[0];
+  uint16_t    target_address  = AUXROM_RAM_Window.as_struct_a.AR_BUF0_OPTS[1];     //  address is in the range 060000 to 0100000
+                                                                                                    //  NOTE: This uses as_struct_a to avoid a compiler warning. See EBTKS_Global_Data.h
+  uint16_t    transfer_length = AUXROM_RAM_Window.as_struct.AR_Lengths[0];
+  uint8_t   * data_ptr        = &AUXROM_RAM_Window.as_struct.AR_Buffer_0[0];
+  uint8_t   * dest_ptr;
+
+  Serial.printf("Target ROM ID(oct):     %03O\n", target_rom);
+  Serial.printf("Target Address(oct): %06O\n", target_address);
+  Serial.printf("Bytes to write(dec):   %d\n", transfer_length);
+
+  if(romMap[target_rom] == NULL)            //  romMap is a table of 256 pointers to locations in EBTKS's address space. i.e. 32 bit pointers. Either NULL, or an address. The index is the ROM ID
+  {
+    Serial.printf("Selected ROM not loaded\n");
+    // return error
+  }
+  if((target_rom < 0361) || (target_rom > 254))
+  {
+    Serial.printf("Selected ROM is not an AUXROM\n");
+    // return error
+  }
+  if(target_address + transfer_length  > 0100000 )
+  {
+    transfer_length = 0100000 - target_address;	          //  Don't let AUXROM write past end of ROM.  Maybe we should report an error
+  }
+  dest_ptr = romMap[target_rom] + (target_address - 060000);
+  while(transfer_length--)
+  {
+    *dest_ptr++ = *data_ptr    ++;
+  }
+
+
+  
+}
+
+//
 //  Update the Current Path with the provided path. Most of the hard work happens in Resolve_Path()
 //  See its documentation
 //
@@ -69,9 +115,9 @@ void initialize_Current_Path(void)
 
 void AUXROM_SDCD(void)
 {
-  //  Serial.printf("Current Path before SDCD [%s]\n", Current_Path);
-  //  Serial.printf("Update Path via AUXROM   [%s]\n", AUXROM_RAM_Window.as_struct.AR_Buffer_6);
-  //  show_mailboxes_and_usage();
+    Serial.printf("Current Path before SDCD [%s]\n", Current_Path);
+    Serial.printf("Update Path via AUXROM   [%s]\n", AUXROM_RAM_Window.as_struct.AR_Buffer_6);
+    show_mailboxes_and_usage();
   do
   {
     if(Resolve_Path((char *)AUXROM_RAM_Window.as_struct.AR_Buffer_6))       //  Returns true if no parsing problems
@@ -175,6 +221,7 @@ bool Resolve_Path(char *New_Path)
 	  }
 	}
 
+  Serial.printf("Path so far [%s]\n", Resolved_Path);
   //
   //  Parse the New_Path. Handle the following:
   //  /         separates directory names
@@ -261,6 +308,7 @@ bool Resolve_Path(char *New_Path)
   //  We have finished Resolving the path.
   //
   Resolved_Path_ends_with_slash = (dest_ptr[-1] == '/');
+  Serial.printf("Resolved_Path is [%s]\n", Resolved_Path);
   return true;
 }
 
