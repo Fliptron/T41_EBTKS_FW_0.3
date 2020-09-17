@@ -74,7 +74,7 @@ void AUXROM_WROM(void)
   uint16_t    target_address  = AUXROM_RAM_Window.as_struct_a.AR_BUF0_OPTS[1];                      //  address is in the range 060000 to 0100000
                                                                                                     //  NOTE: This uses as_struct_a to avoid a compiler warning. See EBTKS_Global_Data.h
   uint16_t    transfer_length = AUXROM_RAM_Window.as_struct.AR_Lengths[0];
-  uint8_t   * data_ptr        = &AUXROM_RAM_Window.as_struct.AR_Buffer_0[0];
+  uint8_t   * data_ptr        = &AUXROM_RAM_Window.as_struct_a.AR_Buffer_0[0];
   uint8_t   * dest_ptr;
 
   Serial.printf("Target ROM ID(oct):     %03O\n", target_rom);
@@ -100,9 +100,6 @@ void AUXROM_WROM(void)
   {
     *dest_ptr++ = *data_ptr    ++;
   }
-
-
-  
 }
 
 //
@@ -178,8 +175,112 @@ void AUXROM_SDCUR(void)
   AUXROM_RAM_Window.as_struct.AR_Mailboxes[Mailbox_to_be_processed] = 0;                      //  Release mailbox.    Must always be the last thing we do
 }
 
+//
+//  Always uses Buffer 6 and associated parameters
+//
+//  SDCAT                       does a full directory listing to the CRT IS device (stk=0 bytes)
+//  SDCAT A$,S,F,0              starts a NEW directory listing, putting first entry in A$, size in S, and flags in F (stk=22,27,32 bytes)
+//  SDCAT A$,S,F,1              continues the ACTIVE directory listing, putting next entry in A$, size in S, and flags in F (stk=22,27,32 bytes)
+//  SDCAT fileSpec$             does a full directory listing to the CRT IS device of files matching 'fileSpec$' (stk=4 bytes)
+//  SDCAT A$,S,F,0,fileSpec$    starts a NEW directory listing, putting first entry in A$, size in S, and flags in F (stk=26,31,36 bytes)
+//  SDCAT A$,S,F,1,fileSpec$    continues the ACTIVE directory listing, putting next entry in A$, size in S, and flags in F (stk=26,31,36 bytes)
+//
+//  returns AR_Usages[6] = 0 for ok, 1 for finished (and 0 length buf6), 213 for any error
+//
+//  On good return, AR_Buffer_6 has null terminated string, AR_Usages[6] = 0; 
+//     BOPT60-BOP63=file size, BOPT64-BOPT67=file flags/attributes (extra big for AUXROM convenience)
+//
+//  No current suport for filespec$ variant. Must be "*" for now.
+//
+//  Test cases        AR_BUF6_OPTS[0]   AR_BUF6_OPTS[1]  Buffer 6       Notes
+//                    first=0           wildcards=0      match          We don't support wildcards in this revision
+//                    next=1            unique=1         pattern
+//  SDCAT             0                 0                 *             Should handle this. Initialize and return first result
+//                    1                 junk?             junk          Should handle this. This is the second call
+//                    1                 junk?             junk          Should handle this. This is for the rest of the calls
+//  SDCAT "*"         0                 0                 *             Should handle this. Initialize and return first result
+//  SDCAT "D*"        0                 0                 D*            Can't handle this
+//  SDCAT A$,S,F,0    0                 0                 *             Should handle this. Initialize and return first result
+//  SDCAT A$,S,F,1    1                 0                 *             Should handle this. Return next result
+//  SDCAT A$,S,F,0,fileSpec$                                            Can't handle this
+//  SDCAT A$,S,F,1,fileSpec$                                            Can't handle this
+//
+//
 
+//static int        SDCAT_line_count = 0;
+static bool       SDCAT_First_seen = false;
+static char       dir_line[130];               //  Leave room for a trailing 0x00 (that is not included in the passed max length of PS.get_line)
+static int32_t    get_line_char_count;
 
+void AUXROM_SDCAT(void)
+{
+  uint32_t    temp_uint;
+  char        date_time[18];
+  char        file_size[12];
+
+  //
+  //  Show Parameters
+  //
+  Serial.printf("\nSDCAT\nAR_BUF6_OPTS[0] = %d\n",AUXROM_RAM_Window.as_struct.AR_BUF6_OPTS[0]);
+  Serial.printf("AR_BUF6_OPTS[1] = %d\n",AUXROM_RAM_Window.as_struct.AR_BUF6_OPTS[1]);
+  Serial.printf("Buffer 6 [%s]\n", AUXROM_RAM_Window.as_struct.AR_Buffer_6);
+
+  if(AUXROM_RAM_Window.as_struct.AR_BUF6_OPTS[0] == 0)  //  This is a First Call
+  {
+    if(!LineAtATime_ls_Init())
+    {                                                       //  Failed to do a listing of the current directory
+      AUXROM_RAM_Window.as_struct.AR_Usages[6]    = 213;    //  Error
+      AUXROM_RAM_Window.as_struct.AR_Mailboxes[6] = 0;      //  Indicate we are done
+      return;
+    }
+    SDCAT_First_seen = true;
+  }
+  if(!SDCAT_First_seen)
+  {
+    //
+    //  Either we haven't done a first call, or a previous call reported we were at the end of the directory
+    //
+    AUXROM_RAM_Window.as_struct.AR_Usages[6]    = 213;    //  Error
+    AUXROM_RAM_Window.as_struct.AR_Mailboxes[6] = 0;      //  Indicate we are done
+    return;
+  }
+  if(!LineAtATime_ls_Next())
+  {   //  No more directory lines
+    SDCAT_First_seen = false;                             //  Make sure the enxt call is a starting call
+    AUXROM_RAM_Window.as_struct.AR_Lengths[6]   = 0;      //  nothing more to return
+    AUXROM_RAM_Window.as_struct.AR_Usages[6]    = 1;      //  Success and END
+    AUXROM_RAM_Window.as_struct.AR_Mailboxes[6] = 0;      //  Indicate we are done
+    return;
+  }
+  //
+  //  Got another directory entry. Parse it into little bitz
+  //
+  //  A directory entry looks like this:
+  //    2020-09-07 16:24          0 pathtest/
+  //    01234567890123456789012345678901234567890     Sub-directories are marked by a trailing slash, otherwise it is a file
+  //
+  Serial.printf("dir_line   [%s]\n", dir_line);
+  strlcpy(date_time, dir_line, 17);
+  strlcpy(file_size, &dir_line[16], 12);
+  temp_uint = strlcpy(AUXROM_RAM_Window.as_struct.AR_Buffer_6, &dir_line[28], 129);
+  AUXROM_RAM_Window.as_struct.AR_Lengths[6] = temp_uint;
+  temp_uint = atoi(file_size);
+  Serial.printf("Filename [%s]   Date/time [%s]   Size [%s] = %d\n", AUXROM_RAM_Window.as_struct.AR_Buffer_6, date_time, file_size, temp_uint);
+  AUXROM_RAM_Window.as_struct.AR_Usages[6]  = 0;        //  Success
+ 
+  // this should just be a casted store
+  AUXROM_RAM_Window.as_struct_a.AR_BUF6_OPTS[0] = temp_uint & 0x000000FFL;
+  AUXROM_RAM_Window.as_struct_a.AR_BUF6_OPTS[1] = (temp_uint >>  8) & 0x000000FFL;
+  AUXROM_RAM_Window.as_struct_a.AR_BUF6_OPTS[2] = (temp_uint >> 16) & 0x000000FFL;
+  AUXROM_RAM_Window.as_struct_a.AR_BUF6_OPTS[3] = (temp_uint >> 24) & 0x000000FFL;
+
+  AUXROM_RAM_Window.as_struct_a.AR_BUF6_OPTS[4] = 0x20;     //  The 32 bit indicates Archive Status
+  AUXROM_RAM_Window.as_struct_a.AR_BUF6_OPTS[5] = 0x00;
+  AUXROM_RAM_Window.as_struct_a.AR_BUF6_OPTS[6] = 0x00;
+  AUXROM_RAM_Window.as_struct_a.AR_BUF6_OPTS[7] = 0x00;
+  AUXROM_RAM_Window.as_struct.AR_Mailboxes[6] = 0;  //  Indicate we are done
+  return;
+}
 
 //
 //  This function takes New_Path and appends it to Current_Path (if it is a relative path) and
@@ -346,17 +447,13 @@ bool LineAtATime_ls_Init(void)
   }
 
   PS.init(Directory_Listing_Buffer, DIRECTORY_LISTING_BUFFER_SIZE);
-  dir.ls(&PS, LS_SIZE | LS_DATE, 0);    //  No indent needed (3rd parameter) because we are no doing a recursive listing
+  dir.ls(&PS, LS_SIZE | LS_DATE, 0);    //  No indent needed (3rd parameter) because we are not doing a recursive listing
   return true;
 }
 
-
 bool LineAtATime_ls_Next()
 {
-  int32_t   get_line_char_count;
-  char      dir_line[65];               //  Leave room for a trailing 0x00 (that is not included in the passed max length of PS.get_line)
-
-  get_line_char_count = PS.get_line(dir_line, 64);
+  get_line_char_count = PS.get_line(dir_line, 128);
 
   if(get_line_char_count >= 0)
   {

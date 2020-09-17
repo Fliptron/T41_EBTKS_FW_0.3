@@ -133,6 +133,7 @@ void initialize_Current_Path(void);
 void AUXROM_WROM(void);
 void AUXROM_SDCD(void);
 void AUXROM_SDCUR(void);
+void AUXROM_SDCAT(void);
 
 
 //
@@ -171,6 +172,6 @@ bool Three_Shift_Clicks_Poll(void);
 //  So this is to just shut up some warning messages
 //
 
-extern size_t strlcpy(char *, const char *, size_t);
+extern size_t strlcpy(char *, const char *, size_t);    //  size parameter includes space for the null
 extern size_t strlcat(char *, const char *, size_t);
 

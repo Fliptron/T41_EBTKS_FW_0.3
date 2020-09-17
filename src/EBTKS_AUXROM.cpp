@@ -77,7 +77,7 @@
 
 
 //
-//  Write only 0xFFE0/0177740. AUXROM_Mailbox_has_Changed
+//  HEYEBTKS  0xFFE0/0177740. AUXROM_Mailbox_has_Changed
 //  Relative to the base of the I/O area, this is 0340(8) , 0xE0 , 224(10)
 //
 //  This write only I/O address will have a Maibox/Buffer number written by the AUXROM when there is
@@ -147,6 +147,7 @@ void AUXROM_Poll(void)
       AUXROM_SDCUR();
       break;
     case AUX_USAGE_SDCAT:                      ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////  AUX_USAGE_SDCAT
+      AUXROM_SDCAT();
       break;
     case AUX_USAGE_SDFLSH:                      ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////  AUX_USAGE_SDFLSH
       break;

@@ -1,7 +1,7 @@
 //
 //  Philip's Class to handle multiline text to be sent to the HP85.
 //
-//  Only use case is directory listings
+//  Only use case is directory listings, so far
 //
 //  References:
 //    G:\PlatformIO_Projects\Teensy_V4.1\T41_EBTKS_FW_0.3\.pio\libdeps\teensy41\SdFat\src\FatLib\FatFile.h      line 405    bool ls(print_t* pr, uint8_t flags = 0, uint8_t indent = 0);

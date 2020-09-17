@@ -661,6 +661,8 @@ enum analyzer_state{
 #define SERPOL  (0177425)       //  MY LISTEN ADDRESS
 #define EXSTAT  (0177426)       //  EXTENDED IO STATUS
 
+#define HEYEBTKS (0177740)      //  Mailbox alert for AUXROM Functions. ()
+
 //
 //  HP-85 RAM Mirrors for some Standard I/O registers
 //
